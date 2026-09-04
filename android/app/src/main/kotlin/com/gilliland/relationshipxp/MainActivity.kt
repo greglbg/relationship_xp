@@ -1,4 +1,4 @@
-package com.example.flutter_relationship_xp
+package com.gilliland.relationshipxp
 
 import io.flutter.embedding.android.FlutterActivity
 
