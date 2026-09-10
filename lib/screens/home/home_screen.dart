@@ -204,15 +204,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     for (final memberId in memberIds) memberId: 0,
                   };
 
+                  var pendingReviewCount = 0;
+
                   for (final claim in claims) {
                     final data = claim.data();
 
-                    if (data['status'] != 'approved') {
-                      continue;
-                    }
-
                     final submittedByUserId =
                         data['submittedByUserId'] as String?;
+
+                    final status = data['status'] as String? ?? 'pending';
+
+                    if (status == 'pending' &&
+                        submittedByUserId != null &&
+                        submittedByUserId != user.uid) {
+                      pendingReviewCount++;
+                    }
+
+                    if (status != 'approved') {
+                      continue;
+                    }
 
                     final xp = data['xp'] as int? ?? 0;
 
@@ -335,9 +345,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           OutlinedButton.icon(
                             onPressed: () =>
                                 openPendingReviewsScreen(context, coupleId),
-                            icon: const Icon(Icons.rate_review_outlined),
-                            label: const Text('Pending Reviews'),
+                            icon: Icon(
+                              pendingReviewCount > 0
+                                  ? Icons.mark_email_unread_outlined
+                                  : Icons.rate_review_outlined,
+                            ),
+                            label: Text(
+                              pendingReviewCount > 0
+                                  ? 'Pending Reviews ($pendingReviewCount)'
+                                  : 'Pending Reviews',
+                            ),
                           ),
+                          if (pendingReviewCount > 0) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              pendingReviewCount == 1
+                                  ? '1 activity is waiting for your review.'
+                                  : '$pendingReviewCount activities are waiting for your review.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: () =>
