@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'join_couple_screen.dart';
+
 class CoupleSetupScreen extends StatefulWidget {
   const CoupleSetupScreen({super.key});
 
@@ -60,6 +62,12 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
         });
       }
     }
+  }
+
+  void openJoinScreen() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const JoinCoupleScreen()));
   }
 
   @override
@@ -129,13 +137,13 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: null,
+                onPressed: isLoading ? null : openJoinScreen,
                 icon: const Icon(Icons.group_add),
                 label: const Text('Join Your Partner'),
               ),
               const Spacer(),
               Text(
-                'Partner invitations are coming next.',
+                'Already have an invite? Join your partner using their code.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),

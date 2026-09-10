@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/couple/couple_setup_screen.dart';
+import '../screens/couple/partner_invite_screen.dart';
 import '../screens/home/home_screen.dart';
 import 'login_screen.dart';
 import 'profile_setup_screen.dart';
@@ -45,16 +46,16 @@ class AuthGate extends StatelessWidget {
               );
             }
 
-            final data = profileSnapshot.data?.data();
+            final profileData = profileSnapshot.data?.data();
 
-            if (data == null) {
+            if (profileData == null) {
               return const Scaffold(
                 body: Center(child: Text('Profile not found.')),
               );
             }
 
-            final displayName = data['displayName'] as String?;
-            final coupleId = data['coupleId'] as String?;
+            final displayName = profileData['displayName'] as String?;
+            final coupleId = profileData['coupleId'] as String?;
 
             if (displayName == null || displayName.trim().isEmpty) {
               return const ProfileSetupScreen();
@@ -64,7 +65,45 @@ class AuthGate extends StatelessWidget {
               return const CoupleSetupScreen();
             }
 
-            return const HomeScreen();
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('couples')
+                  .doc(coupleId)
+                  .snapshots(),
+              builder: (context, coupleSnapshot) {
+                if (coupleSnapshot.connectionState == ConnectionState.waiting) {
+                  return const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                if (coupleSnapshot.hasError) {
+                  return const Scaffold(
+                    body: Center(
+                      child: Text('Unable to load your couple information.'),
+                    ),
+                  );
+                }
+
+                final coupleData = coupleSnapshot.data?.data();
+
+                if (coupleData == null) {
+                  return const Scaffold(
+                    body: Center(child: Text('Couple information not found.')),
+                  );
+                }
+
+                final memberIds = List<String>.from(
+                  coupleData['memberIds'] ?? [],
+                );
+
+                if (memberIds.length < 2) {
+                  return PartnerInviteScreen(coupleId: coupleId);
+                }
+
+                return const HomeScreen();
+              },
+            );
           },
         );
       },
