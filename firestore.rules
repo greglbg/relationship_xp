@@ -55,10 +55,6 @@ service cloud.firestore {
                       && request.resource.data.xp is int
                       && request.resource.data.xp > 0
                       && request.resource.data.xp <= 100
-                      && request.resource.data.photoPath is string
-                      && request.resource.data.photoPath.size() > 0
-                      && request.resource.data.photoUrl is string
-                      && request.resource.data.photoUrl.size() > 0
                       && request.resource.data.keys().hasOnly([
                         'title',
                         'xp',
@@ -67,7 +63,20 @@ service cloud.firestore {
                         'photoPath',
                         'photoUrl',
                         'createdAt'
-                      ]);
+                      ])
+                      && (
+                        (
+                          !('photoPath' in request.resource.data)
+                          && !('photoUrl' in request.resource.data)
+                        )
+                        ||
+                        (
+                          request.resource.data.photoPath is string
+                          && request.resource.data.photoPath.size() > 0
+                          && request.resource.data.photoUrl is string
+                          && request.resource.data.photoUrl.size() > 0
+                        )
+                      );
 
         allow update: if request.auth != null
                       && request.auth.uid in get(

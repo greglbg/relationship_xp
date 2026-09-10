@@ -112,13 +112,6 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
       return;
     }
 
-    if (selectedImage == null) {
-      setState(() {
-        errorMessage = 'Please add a photo showing the completed activity.';
-      });
-      return;
-    }
-
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -131,27 +124,39 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
           .collection('claims')
           .doc();
 
-      final photoPath =
-          'couples/${widget.coupleId}/claims/${claimReference.id}/proof.jpg';
+      String? photoPath;
+      String? photoUrl;
 
-      final storageReference = FirebaseStorage.instance.ref().child(photoPath);
+      if (selectedImage != null) {
+        photoPath =
+            'couples/${widget.coupleId}/claims/${claimReference.id}/proof.jpg';
 
-      await storageReference.putFile(
-        File(selectedImage!.path),
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
+        final storageReference = FirebaseStorage.instance.ref().child(
+          photoPath,
+        );
 
-      final photoUrl = await storageReference.getDownloadURL();
+        await storageReference.putFile(
+          File(selectedImage!.path),
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
 
-      await claimReference.set({
+        photoUrl = await storageReference.getDownloadURL();
+      }
+
+      final claimData = <String, dynamic>{
         'title': title,
         'xp': selectedXp,
         'submittedByUserId': user.uid,
         'status': 'pending',
-        'photoPath': photoPath,
-        'photoUrl': photoUrl,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (photoPath != null && photoUrl != null) {
+        claimData['photoPath'] = photoPath;
+        claimData['photoUrl'] = photoUrl;
+      }
+
+      await claimReference.set(claimData);
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -160,7 +165,7 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
       if (mounted) {
         setState(() {
           if (error.code == 'permission-denied') {
-            errorMessage = 'The photo or activity could not be saved because permission was denied.';
+            errorMessage = 'The activity could not be saved because permission was denied.';
           } else {
             errorMessage = error.message ?? 'Unable to submit the activity.';
           }
@@ -169,7 +174,7 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          errorMessage = 'Something went wrong while uploading the photo.';
+          errorMessage = 'Something went wrong while submitting the activity.';
         });
       }
     } finally {
@@ -221,13 +226,14 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Photo proof',
+                'Photo',
                 style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'A photo is required so your partner can review the activity.',
+                'Optional — add a photo if you would like to share one '
+                'with your partner.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 12),
@@ -235,7 +241,7 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
                 OutlinedButton.icon(
                   onPressed: isLoading ? null : choosePhotoSource,
                   icon: const Icon(Icons.add_a_photo),
-                  label: const Text('Add Photo'),
+                  label: const Text('Add Optional Photo'),
                 )
               else ...[
                 ClipRRect(
@@ -252,6 +258,18 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
                   onPressed: isLoading ? null : choosePhotoSource,
                   icon: const Icon(Icons.refresh),
                   label: const Text('Replace Photo'),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: isLoading
+                      ? null
+                      : () {
+                          setState(() {
+                            selectedImage = null;
+                          });
+                        },
+                  icon: const Icon(Icons.close),
+                  label: const Text('Remove Photo'),
                 ),
               ],
               const SizedBox(height: 24),
@@ -293,8 +311,8 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Activities begin as pending. Your partner should '
-                        'review claims in good faith and approve or reject '
-                        'them based on whether the activity was completed.',
+                        'review claims in good faith and either approve them '
+                        'or request constructive changes.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -314,7 +332,7 @@ class _SubmitClaimScreenState extends State<SubmitClaimScreen> {
               FilledButton.icon(
                 onPressed: isLoading ? null : submitClaim,
                 icon: const Icon(Icons.send),
-                label: Text(isLoading ? 'Uploading...' : 'Submit for Review'),
+                label: Text(isLoading ? 'Submitting...' : 'Submit for Review'),
               ),
             ],
           ),

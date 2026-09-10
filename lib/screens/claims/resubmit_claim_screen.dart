@@ -55,7 +55,23 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     loadExistingPhoto();
   }
 
+  bool get hasExistingPhoto {
+    return widget.photoPath.trim().isNotEmpty ||
+        widget.photoUrl.trim().isNotEmpty;
+  }
+
   Future<void> loadExistingPhoto() async {
+    if (!hasExistingPhoto) {
+      if (mounted) {
+        setState(() {
+          existingPhotoUrl = null;
+          isLoadingExistingPhoto = false;
+        });
+      }
+
+      return;
+    }
+
     if (widget.photoPath.trim().isEmpty) {
       if (mounted) {
         setState(() {
@@ -83,7 +99,9 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     } on FirebaseException {
       if (mounted) {
         setState(() {
-          existingPhotoUrl = widget.photoUrl;
+          existingPhotoUrl = widget.photoUrl.trim().isEmpty
+              ? null
+              : widget.photoUrl;
           isLoadingExistingPhoto = false;
         });
       }
@@ -102,7 +120,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
               children: [
                 ListTile(
                   leading: const Icon(Icons.camera_alt),
-                  title: const Text('Take New Photo'),
+                  title: const Text('Take Photo'),
                   onTap: () {
                     Navigator.of(context).pop();
                     pickImage(ImageSource.camera);
@@ -178,8 +196,13 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
 
     if (selectedImage != null) {
       try {
+        if (photoPath.trim().isEmpty) {
+          photoPath =
+              'couples/${widget.coupleId}/claims/${widget.claimId}/proof.jpg';
+        }
+
         final storageReference = FirebaseStorage.instance.ref().child(
-          widget.photoPath,
+          photoPath,
         );
 
         await storageReference.putFile(
@@ -203,22 +226,27 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     }
 
     try {
+      final updateData = <String, dynamic>{
+        'title': title,
+        'xp': selectedXp,
+        'status': 'pending',
+        'resubmittedAt': FieldValue.serverTimestamp(),
+        'reviewMessage': FieldValue.delete(),
+        'reviewedByUserId': FieldValue.delete(),
+        'reviewedAt': FieldValue.delete(),
+      };
+
+      if (photoPath.trim().isNotEmpty && photoUrl.trim().isNotEmpty) {
+        updateData['photoPath'] = photoPath;
+        updateData['photoUrl'] = photoUrl;
+      }
+
       await FirebaseFirestore.instance
           .collection('couples')
           .doc(widget.coupleId)
           .collection('claims')
           .doc(widget.claimId)
-          .update({
-            'title': title,
-            'xp': selectedXp,
-            'status': 'pending',
-            'photoPath': photoPath,
-            'photoUrl': photoUrl,
-            'resubmittedAt': FieldValue.serverTimestamp(),
-            'reviewMessage': FieldValue.delete(),
-            'reviewedByUserId': FieldValue.delete(),
-            'reviewedAt': FieldValue.delete(),
-          });
+          .update(updateData);
 
       if (mounted) {
         Navigator.of(context).pop(true);
@@ -261,6 +289,18 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       );
     }
 
+    if (!hasExistingPhoto) {
+      return const SizedBox(
+        height: 120,
+        child: Center(
+          child: Text(
+            'No photo attached to this activity.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     if (isLoadingExistingPhoto) {
       return const SizedBox(
         height: 220,
@@ -270,8 +310,13 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
 
     if (existingPhotoUrl == null || existingPhotoUrl!.trim().isEmpty) {
       return const SizedBox(
-        height: 220,
-        child: Center(child: Text('No proof photo is available.')),
+        height: 120,
+        child: Center(
+          child: Text(
+            'Unable to display the existing photo.',
+            textAlign: TextAlign.center,
+          ),
+        ),
       );
     }
 
@@ -282,7 +327,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         return const SizedBox(
-          height: 220,
+          height: 120,
           child: Center(child: Text('Unable to display current proof photo.')),
         );
       },
@@ -334,15 +379,14 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                'Proof photo',
+                'Photo',
                 style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
-                selectedImage == null
-                    ? 'You can keep your current proof photo or replace it.'
-                    : 'Your new proof photo will replace the previous one.',
+              const Text(
+                'Photos are optional. You can keep the current photo, '
+                'replace it, or add one if there was not one before.',
               ),
               const SizedBox(height: 12),
               ClipRRect(
@@ -354,9 +398,9 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                 onPressed: isLoading ? null : choosePhotoSource,
                 icon: const Icon(Icons.add_a_photo),
                 label: Text(
-                  selectedImage == null
+                  selectedImage != null || hasExistingPhoto
                       ? 'Replace Photo'
-                      : 'Choose Different Photo',
+                      : 'Add Optional Photo',
                 ),
               ),
               const SizedBox(height: 24),

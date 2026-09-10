@@ -63,87 +63,303 @@ class HomeScreen extends StatelessWidget {
             .collection('users')
             .doc(user.uid)
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+        builder: (context, profileSnapshot) {
+          if (profileSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
+          if (profileSnapshot.hasError) {
             return const Center(child: Text('Unable to load your profile.'));
           }
 
-          final data = snapshot.data?.data();
+          final profileData = profileSnapshot.data?.data();
 
-          if (data == null) {
+          if (profileData == null) {
             return const Center(child: Text('Profile not found.'));
           }
 
-          final displayName = data['displayName'] as String? ?? 'Adventurer';
+          final displayName =
+              profileData['displayName'] as String? ?? 'Adventurer';
 
-          final individualXp = data['individualXp'] as int? ?? 0;
-          final coupleId = data['coupleId'] as String?;
+          final coupleId = profileData['coupleId'] as String?;
 
-          final level = XpSystem.levelForXp(individualXp);
-          final xpIntoLevel = XpSystem.xpIntoCurrentLevel(individualXp);
-          final xpNeeded = XpSystem.xpNeededForNextLevel(individualXp);
-          final progress = XpSystem.levelProgress(individualXp);
+          if (coupleId == null || coupleId.trim().isEmpty) {
+            return const Center(child: Text('Couple information not found.'));
+          }
 
-          return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Welcome, $displayName!',
-                    style: Theme.of(context).textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Celebrate the little things that make your relationship stronger.',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 32),
-                  PlayerCard(
-                    level: level,
-                    totalXp: individualXp,
-                    xpIntoLevel: xpIntoLevel,
-                    xpNeeded: xpNeeded,
-                    progress: progress,
-                  ),
-                  if (coupleId != null) ...[
-                    const SizedBox(height: 24),
-                    ActivityUpdatesCard(coupleId: coupleId, userId: user.uid),
-                  ],
-                  const SizedBox(height: 32),
-                  OutlinedButton.icon(
-                    onPressed: coupleId == null
-                        ? null
-                        : () => openPendingReviewsScreen(context, coupleId),
-                    icon: const Icon(Icons.rate_review_outlined),
-                    label: const Text('Pending Reviews'),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: coupleId == null
-                        ? null
-                        : () => openSubmitClaimScreen(context, coupleId),
-                    icon: const Icon(Icons.add_task),
-                    label: const Text('Submit Activity'),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Your partner will review your activity before XP is earned.',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('couples')
+                .doc(coupleId)
+                .snapshots(),
+            builder: (context, coupleSnapshot) {
+              if (coupleSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (coupleSnapshot.hasError) {
+                return const Center(
+                  child: Text('Unable to load couple information.'),
+                );
+              }
+
+              final coupleData = coupleSnapshot.data?.data();
+
+              if (coupleData == null) {
+                return const Center(
+                  child: Text('Couple information not found.'),
+                );
+              }
+
+              final memberIds = List<String>.from(
+                coupleData['memberIds'] ?? [],
+              );
+
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('couples')
+                    .doc(coupleId)
+                    .collection('claims')
+                    .snapshots(),
+                builder: (context, claimsSnapshot) {
+                  if (claimsSnapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (claimsSnapshot.hasError) {
+                    return const Center(
+                      child: Text('Unable to load activity XP.'),
+                    );
+                  }
+
+                  final claims = claimsSnapshot.data?.docs ?? [];
+
+                  final xpByMember = <String, int>{
+                    for (final memberId in memberIds) memberId: 0,
+                  };
+
+                  for (final claim in claims) {
+                    final data = claim.data();
+
+                    if (data['status'] != 'approved') {
+                      continue;
+                    }
+
+                    final submittedByUserId =
+                        data['submittedByUserId'] as String?;
+
+                    final xp = data['xp'] as int? ?? 0;
+
+                    if (submittedByUserId == null) {
+                      continue;
+                    }
+
+                    if (!xpByMember.containsKey(submittedByUserId)) {
+                      continue;
+                    }
+
+                    xpByMember[submittedByUserId] =
+                        (xpByMember[submittedByUserId] ?? 0) + xp;
+                  }
+
+                  final yourXp = xpByMember[user.uid] ?? 0;
+                  final yourLevel = XpSystem.levelForXp(yourXp);
+                  final yourXpIntoLevel = XpSystem.xpIntoCurrentLevel(yourXp);
+                  final yourXpNeeded = XpSystem.xpNeededForNextLevel(yourXp);
+                  final yourProgress = XpSystem.levelProgress(yourXp);
+
+                  String? partnerId;
+
+                  for (final memberId in memberIds) {
+                    if (memberId != user.uid) {
+                      partnerId = memberId;
+                      break;
+                    }
+                  }
+
+                  final partnerXp = partnerId == null
+                      ? 0
+                      : xpByMember[partnerId] ?? 0;
+
+                  final partnerLevel = XpSystem.levelForXp(partnerXp);
+
+                  var coupleXp = 0;
+                  var coupleLevel = 0;
+
+                  for (final memberId in memberIds) {
+                    final memberXp = xpByMember[memberId] ?? 0;
+
+                    coupleXp += memberXp;
+                    coupleLevel += XpSystem.levelForXp(memberXp);
+                  }
+
+                  return SafeArea(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Welcome, $displayName!',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Celebrate the little things that make your '
+                            'relationship stronger.',
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 32),
+                          PlayerCard(
+                            level: yourLevel,
+                            totalXp: yourXp,
+                            xpIntoLevel: yourXpIntoLevel,
+                            xpNeeded: yourXpNeeded,
+                            progress: yourProgress,
+                          ),
+                          const SizedBox(height: 16),
+                          CoupleProgressCard(
+                            yourLevel: yourLevel,
+                            partnerLevel: partnerLevel,
+                            coupleLevel: coupleLevel,
+                            coupleXp: coupleXp,
+                          ),
+                          const SizedBox(height: 24),
+                          ActivityUpdatesCard(
+                            coupleId: coupleId,
+                            userId: user.uid,
+                          ),
+                          const SizedBox(height: 32),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                openPendingReviewsScreen(context, coupleId),
+                            icon: const Icon(Icons.rate_review_outlined),
+                            label: const Text('Pending Reviews'),
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton.icon(
+                            onPressed: () =>
+                                openSubmitClaimScreen(context, coupleId),
+                            icon: const Icon(Icons.add_task),
+                            label: const Text('Submit Activity'),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Approved activities earn XP. Activities '
+                            'that need changes carry no penalty.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           );
         },
       ),
+    );
+  }
+}
+
+class CoupleProgressCard extends StatelessWidget {
+  const CoupleProgressCard({
+    required this.yourLevel,
+    required this.partnerLevel,
+    required this.coupleLevel,
+    required this.coupleXp,
+    super.key,
+  });
+
+  final int yourLevel;
+  final int partnerLevel;
+  final int coupleLevel;
+  final int coupleXp;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Text(
+              'Couple Level',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$coupleLevel',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: CoupleMemberLevel(label: 'You', level: yourLevel),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    '+',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ),
+                Expanded(
+                  child: CoupleMemberLevel(
+                    label: 'Partner',
+                    level: partnerLevel,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '$coupleXp total couple XP',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Couple Level is the sum of both partner levels.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CoupleMemberLevel extends StatelessWidget {
+  const CoupleMemberLevel({
+    required this.label,
+    required this.level,
+    super.key,
+  });
+
+  final String label;
+  final int level;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 4),
+        Text(
+          'Level $level',
+          style: Theme.of(context).textTheme.titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }
@@ -295,8 +511,7 @@ class ActivityUpdatesCard extends StatelessWidget {
                 if (approved)
                   Text(
                     'Your partner approved this activity. '
-                    '$xp XP will be awarded once we connect approvals '
-                    'to the XP system.',
+                    'You earned $xp XP!',
                   )
                 else ...[
                   const Text('Your partner left some constructive feedback:'),
@@ -362,10 +577,7 @@ class PlayerCard extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            Text(
-              'Player Level',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Your Level', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               '$level',
