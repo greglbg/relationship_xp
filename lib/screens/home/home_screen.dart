@@ -3,12 +3,27 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../game/xp_system.dart';
+import '../awards/award_brownie_points_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  Future<void> openAwardScreen(BuildContext context, String coupleId) async {
+    final awardCreated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => AwardBrowniePointsScreen(coupleId: coupleId),
+      ),
+    );
+
+    if (awardCreated == true && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Brownie points awarded!')));
+    }
   }
 
   @override
@@ -51,7 +66,9 @@ class HomeScreen extends StatelessWidget {
           }
 
           final displayName = data['displayName'] as String? ?? 'Adventurer';
+
           final individualXp = data['individualXp'] as int? ?? 0;
+          final coupleId = data['coupleId'] as String?;
 
           final level = XpSystem.levelForXp(individualXp);
           final xpIntoLevel = XpSystem.xpIntoCurrentLevel(individualXp);
@@ -84,13 +101,15 @@ class HomeScreen extends StatelessWidget {
                   ),
                   const Spacer(),
                   FilledButton.icon(
-                    onPressed: null,
+                    onPressed: coupleId == null
+                        ? null
+                        : () => openAwardScreen(context, coupleId),
                     icon: const Icon(Icons.favorite),
                     label: const Text('Award Brownie Points'),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Partner features will be available after account setup.',
+                    'Celebrate something your partner did.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
