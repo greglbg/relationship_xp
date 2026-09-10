@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../screens/couple/couple_setup_screen.dart';
 import '../screens/home/home_screen.dart';
 import 'login_screen.dart';
 import 'profile_setup_screen.dart';
@@ -45,10 +46,22 @@ class AuthGate extends StatelessWidget {
             }
 
             final data = profileSnapshot.data?.data();
-            final displayName = data?['displayName'] as String?;
+
+            if (data == null) {
+              return const Scaffold(
+                body: Center(child: Text('Profile not found.')),
+              );
+            }
+
+            final displayName = data['displayName'] as String?;
+            final coupleId = data['coupleId'] as String?;
 
             if (displayName == null || displayName.trim().isEmpty) {
               return const ProfileSetupScreen();
+            }
+
+            if (coupleId == null || coupleId.trim().isEmpty) {
+              return const CoupleSetupScreen();
             }
 
             return const HomeScreen();

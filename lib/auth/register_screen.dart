@@ -45,7 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'email': user.email,
           'displayName': '',
           'individualXp': 0,
-          'level': 1,
+          'coupleId': null,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
