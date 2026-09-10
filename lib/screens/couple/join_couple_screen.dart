@@ -39,54 +39,125 @@ class _JoinCoupleScreenState extends State<JoinCoupleScreen> {
     });
 
     try {
-      final inviteReference = FirebaseFirestore.instance
+      final firestore = FirebaseFirestore.instance;
+
+      // Step 1:
+      // Find the invitation document that matches the entered code.
+      final inviteReference = firestore
           .collection('coupleInvites')
           .doc(inviteCode);
 
       final inviteSnapshot = await inviteReference.get();
 
       if (!inviteSnapshot.exists) {
-        setState(() {
-          errorMessage = 'That invite code was not found.';
-        });
-        return;
+        throw Exception('That invite code could not be found.');
       }
 
       final inviteData = inviteSnapshot.data();
-      final coupleId = inviteData?['coupleId'] as String?;
+
+      if (inviteData == null) {
+        throw Exception('That invitation could not be loaded.');
+      }
+
+      final coupleId = inviteData['coupleId'] as String?;
 
       if (coupleId == null || coupleId.trim().isEmpty) {
-        setState(() {
-          errorMessage = 'That invite code is invalid.';
+        throw Exception('That invitation does not contain a valid couple.');
+      }
+
+      final coupleReference = firestore.collection('couples').doc(coupleId);
+
+      // Step 2:
+      // Read the couple before trying to join it.
+      final coupleSnapshot = await coupleReference.get();
+
+      if (!coupleSnapshot.exists) {
+        throw Exception(
+          'The couple connected to this invite no longer exists.',
+        );
+      }
+
+      final coupleData = coupleSnapshot.data();
+
+      if (coupleData == null) {
+        throw Exception('The couple information could not be loaded.');
+      }
+
+      final memberIds = List<String>.from(coupleData['memberIds'] ?? []);
+
+      if (memberIds.contains(user.uid)) {
+        // This user is already a member.
+        // We only need to make sure their profile points to the couple.
+        await firestore.collection('users').doc(user.uid).update({
+          'coupleId': coupleId,
         });
+
         return;
       }
 
-      final coupleReference = FirebaseFirestore.instance
-          .collection('couples')
-          .doc(coupleId);
+      if (memberIds.length >= 2) {
+        throw Exception('This couple already has two members.');
+      }
 
-      final userReference = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid);
-
-      final batch = FirebaseFirestore.instance.batch();
-
-      batch.update(coupleReference, {
+      // Step 3:
+      // Add this user to the couple FIRST.
+      //
+      // We deliberately do this separately from the user profile update.
+      // AuthGate watches the user profile, so we do not want it to see a
+      // coupleId until Firestore has confirmed that this user is actually
+      // a member of that couple.
+      await coupleReference.update({
         'memberIds': FieldValue.arrayUnion([user.uid]),
       });
 
-      batch.update(userReference, {'coupleId': coupleId});
+      // Step 4:
+      // Confirm from Firebase that the couple now contains this user.
+      final confirmedCoupleSnapshot = await coupleReference.get(
+        const GetOptions(source: Source.server),
+      );
 
-      await batch.commit();
+      final confirmedCoupleData = confirmedCoupleSnapshot.data();
+
+      if (confirmedCoupleData == null) {
+        throw Exception('Unable to confirm the couple membership.');
+      }
+
+      final confirmedMemberIds = List<String>.from(
+        confirmedCoupleData['memberIds'] ?? [],
+      );
+
+      if (!confirmedMemberIds.contains(user.uid)) {
+        throw Exception('Firebase did not confirm the couple membership.');
+      }
+
+      // Step 5:
+      // Now that membership definitely exists, update the user's profile.
+      //
+      // This is the change that AuthGate is watching.
+      await firestore.collection('users').doc(user.uid).update({
+        'coupleId': coupleId,
+      });
+
+      // We do not manually navigate to Home here.
+      //
+      // AuthGate will see the completed profile update and automatically
+      // display the correct next screen.
     } on FirebaseException catch (error) {
       if (mounted) {
         setState(() {
           if (error.code == 'permission-denied') {
-            errorMessage = 'Unable to join this couple. The invite may already have been used.';
+            errorMessage =
+                'Firebase did not allow this couple to be joined. '
+                'Please check the invite code and try again.';
           } else {
             errorMessage = error.message ?? 'Unable to join the couple.';
           }
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          errorMessage = error.toString().replaceFirst('Exception: ', '');
         });
       }
     } finally {
@@ -107,35 +178,41 @@ class _JoinCoupleScreenState extends State<JoinCoupleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Join Your Partner')),
+      appBar: AppBar(title: const Text('Join Couple')),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Join your partner\'s team',
+                'Join your partner',
                 style: Theme.of(context).textTheme.headlineMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(
-                'Enter the invite code your partner shared with you.',
+                'Enter the invite code your partner generated.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 32),
               TextField(
                 controller: inviteCodeController,
+                enabled: !isLoading,
                 autocorrect: false,
                 enableSuggestions: false,
+                textCapitalization: TextCapitalization.none,
                 decoration: const InputDecoration(
-                  labelText: 'Invite code',
-                  hintText: 'Enter your partner\'s invite code',
+                  labelText: 'Invite Code',
                   border: OutlineInputBorder(),
                 ),
+                onSubmitted: isLoading
+                    ? null
+                    : (_) {
+                        joinCouple();
+                      },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               if (errorMessage != null) ...[
                 Text(
                   errorMessage!,
@@ -146,14 +223,14 @@ class _JoinCoupleScreenState extends State<JoinCoupleScreen> {
               ],
               FilledButton.icon(
                 onPressed: isLoading ? null : joinCouple,
-                icon: const Icon(Icons.group_add),
+                icon: isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.group_add),
                 label: Text(isLoading ? 'Joining...' : 'Join Couple'),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Invite codes are case-sensitive, so enter the code exactly as it was shared.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),

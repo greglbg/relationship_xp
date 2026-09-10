@@ -41,16 +41,39 @@ class AuthGate extends StatelessWidget {
             }
 
             if (profileSnapshot.hasError) {
-              return const Scaffold(
-                body: Center(child: Text('Unable to load your profile.')),
+              return Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Unable to load your profile.\n\n'
+                      '${profileSnapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               );
             }
 
             final profileData = profileSnapshot.data?.data();
 
             if (profileData == null) {
-              return const Scaffold(
-                body: Center(child: Text('Profile not found.')),
+              return Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Profile not found.'),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                        },
+                        child: const Text('Sign Out'),
+                      ),
+                    ],
+                  ),
+                ),
               );
             }
 
@@ -78,9 +101,32 @@ class AuthGate extends StatelessWidget {
                 }
 
                 if (coupleSnapshot.hasError) {
-                  return const Scaffold(
+                  return Scaffold(
                     body: Center(
-                      child: Text('Unable to load your couple information.'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Unable to load your couple information.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '${coupleSnapshot.error}',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            OutlinedButton(
+                              onPressed: () async {
+                                await FirebaseAuth.instance.signOut();
+                              },
+                              child: const Text('Sign Out'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 }

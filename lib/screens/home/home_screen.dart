@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../game/xp_system.dart';
+import '../claims/pending_reviews_screen.dart';
+import '../claims/resubmit_claim_screen.dart';
 import '../claims/submit_claim_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -27,6 +29,14 @@ class HomeScreen extends StatelessWidget {
         const SnackBar(content: Text('Activity submitted for partner review.')),
       );
     }
+  }
+
+  void openPendingReviewsScreen(BuildContext context, String coupleId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => PendingReviewsScreen(coupleId: coupleId),
+      ),
+    );
   }
 
   @override
@@ -79,7 +89,7 @@ class HomeScreen extends StatelessWidget {
           final progress = XpSystem.levelProgress(individualXp);
 
           return SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,7 +112,19 @@ class HomeScreen extends StatelessWidget {
                     xpNeeded: xpNeeded,
                     progress: progress,
                   ),
-                  const Spacer(),
+                  if (coupleId != null) ...[
+                    const SizedBox(height: 24),
+                    ActivityUpdatesCard(coupleId: coupleId, userId: user.uid),
+                  ],
+                  const SizedBox(height: 32),
+                  OutlinedButton.icon(
+                    onPressed: coupleId == null
+                        ? null
+                        : () => openPendingReviewsScreen(context, coupleId),
+                    icon: const Icon(Icons.rate_review_outlined),
+                    label: const Text('Pending Reviews'),
+                  ),
+                  const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: coupleId == null
                         ? null
@@ -122,6 +144,197 @@ class HomeScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class ActivityUpdatesCard extends StatelessWidget {
+  const ActivityUpdatesCard({
+    required this.coupleId,
+    required this.userId,
+    super.key,
+  });
+
+  final String coupleId;
+  final String userId;
+
+  Future<void> openResubmitScreen({
+    required BuildContext context,
+    required QueryDocumentSnapshot<Map<String, dynamic>> claim,
+  }) async {
+    final data = claim.data();
+
+    final resubmitted = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => ResubmitClaimScreen(
+          coupleId: coupleId,
+          claimId: claim.id,
+          title: data['title'] as String? ?? '',
+          xp: data['xp'] as int? ?? 25,
+          photoPath: data['photoPath'] as String? ?? '',
+          photoUrl: data['photoUrl'] as String? ?? '',
+          reviewMessage:
+              data['reviewMessage'] as String? ??
+              'Your partner requested an update.',
+        ),
+      ),
+    );
+
+    if (resubmitted == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Activity updated and sent back for review.'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .collection('claims')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return const SizedBox.shrink();
+        }
+
+        final reviewedClaims =
+            snapshot.data?.docs.where((doc) {
+              final data = doc.data();
+
+              if (data['submittedByUserId'] != userId) {
+                return false;
+              }
+
+              final status = data['status'];
+
+              return status == 'approved' || status == 'changes_requested';
+            }).toList() ??
+            [];
+
+        reviewedClaims.sort((a, b) {
+          final aTime = a.data()['reviewedAt'] as Timestamp?;
+          final bTime = b.data()['reviewedAt'] as Timestamp?;
+
+          if (aTime == null && bTime == null) {
+            return 0;
+          }
+
+          if (aTime == null) {
+            return 1;
+          }
+
+          if (bTime == null) {
+            return -1;
+          }
+
+          return bTime.compareTo(aTime);
+        });
+
+        if (reviewedClaims.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final latestClaim = reviewedClaims.first;
+        final data = latestClaim.data();
+
+        final title = data['title'] as String? ?? 'Activity';
+
+        final xp = data['xp'] as int? ?? 0;
+        final status = data['status'] as String?;
+
+        final reviewMessage = data['reviewMessage'] as String?;
+
+        final approved = status == 'approved';
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      approved
+                          ? Icons.celebration_outlined
+                          : Icons.tips_and_updates_outlined,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        approved
+                            ? 'Activity Approved!'
+                            : 'Activity Needs Changes',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                if (approved)
+                  Text(
+                    'Your partner approved this activity. '
+                    '$xp XP will be awarded once we connect approvals '
+                    'to the XP system.',
+                  )
+                else ...[
+                  const Text('Your partner left some constructive feedback:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      reviewMessage?.trim().isNotEmpty == true
+                          ? reviewMessage!
+                          : 'Your partner requested an update.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'There is no penalty. Make the requested update '
+                    'and send the activity back for another review.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: () {
+                      openResubmitScreen(context: context, claim: latestClaim);
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Update & Resubmit'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
