@@ -40,7 +40,9 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
 
   XFile? selectedImage;
   bool isLoading = false;
+  bool isLoadingExistingPhoto = true;
   String? errorMessage;
+  String? existingPhotoUrl;
 
   @override
   void initState() {
@@ -49,6 +51,43 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     titleController = TextEditingController(text: widget.title);
 
     selectedXp = widget.xp;
+
+    loadExistingPhoto();
+  }
+
+  Future<void> loadExistingPhoto() async {
+    if (widget.photoPath.trim().isEmpty) {
+      if (mounted) {
+        setState(() {
+          existingPhotoUrl = widget.photoUrl;
+          isLoadingExistingPhoto = false;
+        });
+      }
+
+      return;
+    }
+
+    try {
+      final storageReference = FirebaseStorage.instance.ref().child(
+        widget.photoPath,
+      );
+
+      final freshPhotoUrl = await storageReference.getDownloadURL();
+
+      if (mounted) {
+        setState(() {
+          existingPhotoUrl = freshPhotoUrl;
+          isLoadingExistingPhoto = false;
+        });
+      }
+    } on FirebaseException {
+      if (mounted) {
+        setState(() {
+          existingPhotoUrl = widget.photoUrl;
+          isLoadingExistingPhoto = false;
+        });
+      }
+    }
   }
 
   Future<void> choosePhotoSource() async {
@@ -135,7 +174,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     });
 
     var photoPath = widget.photoPath;
-    var photoUrl = widget.photoUrl;
+    var photoUrl = existingPhotoUrl ?? widget.photoUrl;
 
     if (selectedImage != null) {
       try {
@@ -155,11 +194,6 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
           setState(() {
             errorMessage =
                 'Photo upload failed: ${error.code}. ${error.message ?? ''}';
-          });
-        }
-
-        if (mounted) {
-          setState(() {
             isLoading = false;
           });
         }
@@ -215,6 +249,44 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
   void dispose() {
     titleController.dispose();
     super.dispose();
+  }
+
+  Widget buildProofPhoto() {
+    if (selectedImage != null) {
+      return Image.file(
+        File(selectedImage!.path),
+        height: 220,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+
+    if (isLoadingExistingPhoto) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (existingPhotoUrl == null || existingPhotoUrl!.trim().isEmpty) {
+      return const SizedBox(
+        height: 220,
+        child: Center(child: Text('No proof photo is available.')),
+      );
+    }
+
+    return Image.network(
+      existingPhotoUrl!,
+      height: 220,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return const SizedBox(
+          height: 220,
+          child: Center(child: Text('Unable to display current proof photo.')),
+        );
+      },
+    );
   }
 
   @override
@@ -275,28 +347,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: selectedImage != null
-                    ? Image.file(
-                        File(selectedImage!.path),
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.network(
-                        widget.photoUrl,
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 220,
-                            alignment: Alignment.center,
-                            child: const Text(
-                              'Unable to display current proof photo.',
-                            ),
-                          );
-                        },
-                      ),
+                child: buildProofPhoto(),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
