@@ -6,6 +6,7 @@ import '../../game/xp_system.dart';
 import '../claims/pending_reviews_screen.dart';
 import '../claims/resubmit_claim_screen.dart';
 import '../claims/submit_claim_screen.dart';
+import '../history/activity_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +67,14 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => PendingReviewsScreen(coupleId: coupleId),
+      ),
+    );
+  }
+
+  void openActivityHistoryScreen(BuildContext context, String coupleId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ActivityHistoryScreen(coupleId: coupleId),
       ),
     );
   }
@@ -316,6 +325,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             userId: user.uid,
                           ),
                           const SizedBox(height: 32),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                openActivityHistoryScreen(context, coupleId),
+                            icon: const Icon(Icons.history),
+                            label: const Text('Activity History'),
+                          ),
+                          const SizedBox(height: 12),
                           OutlinedButton.icon(
                             onPressed: () =>
                                 openPendingReviewsScreen(context, coupleId),
