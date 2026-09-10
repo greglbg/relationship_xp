@@ -1,14 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:relationship_xp/app/relationship_xp_app.dart';
+import 'package:relationship_xp/auth/login_screen.dart';
 
 void main() {
-  testWidgets('Relationship XP home screen loads', (WidgetTester tester) async {
-    await tester.pumpWidget(const RelationshipXpApp());
+  testWidgets('Login screen displays correctly', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
     expect(find.text('Relationship XP'), findsOneWidget);
-    expect(find.text('Welcome to Relationship XP'), findsOneWidget);
-    expect(find.text('Your Brownie Points'), findsOneWidget);
-    expect(find.text('0'), findsOneWidget);
+    expect(find.text('Sign in'), findsAtLeastNWidgets(1));
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
   });
 }

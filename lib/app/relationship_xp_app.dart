@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../screens/home/home_screen.dart';
+import '../auth/auth_gate.dart';
 import '../theme/app_theme.dart';
 
 class RelationshipXpApp extends StatelessWidget {
@@ -12,7 +12,7 @@ class RelationshipXpApp extends StatelessWidget {
       title: 'Relationship XP',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+      home: const AuthGate(),
     );
   }
 }
