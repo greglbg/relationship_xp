@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "296101824731",
+    "project_id": "relationship-xp-f60c8",
+    "storage_bucket": "relationship-xp-f60c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:296101824731:android:a8407b3708b08daf0ee4fe",
+        "android_client_info": {
+          "package_name": "com.gilliland.relationshipxp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCf7IqUPIu9c3-bntSG4SE7wxSZpS1WEO8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
