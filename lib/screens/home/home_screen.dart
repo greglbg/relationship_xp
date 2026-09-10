@@ -7,11 +7,42 @@ import '../claims/pending_reviews_screen.dart';
 import '../claims/resubmit_claim_screen.dart';
 import '../claims/submit_claim_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String? lastSyncedName;
+  String? lastSyncedCoupleId;
 
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
+  }
+
+  Future<void> syncDisplayNameToCouple({
+    required String coupleId,
+    required String userId,
+    required String displayName,
+  }) async {
+    if (lastSyncedName == displayName && lastSyncedCoupleId == coupleId) {
+      return;
+    }
+
+    lastSyncedName = displayName;
+    lastSyncedCoupleId = coupleId;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('couples')
+          .doc(coupleId)
+          .update({'memberNames.$userId': displayName});
+    } on FirebaseException {
+      // The dashboard can still work with a fallback name,
+      // so a failed name sync should not block Home.
+    }
   }
 
   Future<void> openSubmitClaimScreen(
@@ -115,6 +146,31 @@ class HomeScreen extends StatelessWidget {
                 coupleData['memberIds'] ?? [],
               );
 
+              final rawMemberNames =
+                  coupleData['memberNames'] as Map<String, dynamic>?;
+
+              final memberNames = <String, String>{};
+
+              if (rawMemberNames != null) {
+                for (final entry in rawMemberNames.entries) {
+                  final value = entry.value;
+
+                  if (value is String && value.trim().isNotEmpty) {
+                    memberNames[entry.key] = value.trim();
+                  }
+                }
+              }
+
+              if (memberNames[user.uid] != displayName) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  syncDisplayNameToCouple(
+                    coupleId: coupleId,
+                    userId: user.uid,
+                    displayName: displayName,
+                  );
+                });
+              }
+
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('couples')
@@ -164,9 +220,13 @@ class HomeScreen extends StatelessWidget {
                   }
 
                   final yourXp = xpByMember[user.uid] ?? 0;
+
                   final yourLevel = XpSystem.levelForXp(yourXp);
+
                   final yourXpIntoLevel = XpSystem.xpIntoCurrentLevel(yourXp);
+
                   final yourXpNeeded = XpSystem.xpNeededForNextLevel(yourXp);
+
                   final yourProgress = XpSystem.levelProgress(yourXp);
 
                   String? partnerId;
@@ -183,6 +243,20 @@ class HomeScreen extends StatelessWidget {
                       : xpByMember[partnerId] ?? 0;
 
                   final partnerLevel = XpSystem.levelForXp(partnerXp);
+
+                  final partnerXpIntoLevel = XpSystem.xpIntoCurrentLevel(
+                    partnerXp,
+                  );
+
+                  final partnerXpNeeded = XpSystem.xpNeededForNextLevel(
+                    partnerXp,
+                  );
+
+                  final partnerProgress = XpSystem.levelProgress(partnerXp);
+
+                  final partnerName = partnerId == null
+                      ? 'Partner'
+                      : memberNames[partnerId] ?? 'Partner';
 
                   var coupleXp = 0;
                   var coupleLevel = 0;
@@ -212,7 +286,14 @@ class HomeScreen extends StatelessWidget {
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
                           const SizedBox(height: 32),
-                          PlayerCard(
+                          CoupleSummaryCard(
+                            coupleLevel: coupleLevel,
+                            coupleXp: coupleXp,
+                          ),
+                          const SizedBox(height: 16),
+                          PartnerProgressCard(
+                            name: displayName,
+                            label: 'You',
                             level: yourLevel,
                             totalXp: yourXp,
                             xpIntoLevel: yourXpIntoLevel,
@@ -220,11 +301,14 @@ class HomeScreen extends StatelessWidget {
                             progress: yourProgress,
                           ),
                           const SizedBox(height: 16),
-                          CoupleProgressCard(
-                            yourLevel: yourLevel,
-                            partnerLevel: partnerLevel,
-                            coupleLevel: coupleLevel,
-                            coupleXp: coupleXp,
+                          PartnerProgressCard(
+                            name: partnerName,
+                            label: 'Partner',
+                            level: partnerLevel,
+                            totalXp: partnerXp,
+                            xpIntoLevel: partnerXpIntoLevel,
+                            xpNeeded: partnerXpNeeded,
+                            progress: partnerProgress,
                           ),
                           const SizedBox(height: 24),
                           ActivityUpdatesCard(
@@ -266,17 +350,13 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class CoupleProgressCard extends StatelessWidget {
-  const CoupleProgressCard({
-    required this.yourLevel,
-    required this.partnerLevel,
+class CoupleSummaryCard extends StatelessWidget {
+  const CoupleSummaryCard({
     required this.coupleLevel,
     required this.coupleXp,
     super.key,
   });
 
-  final int yourLevel;
-  final int partnerLevel;
   final int coupleLevel;
   final int coupleXp;
 
@@ -284,9 +364,11 @@ class CoupleProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
+            const Icon(Icons.favorite_outline, size: 32),
+            const SizedBox(height: 12),
             Text(
               'Couple Level',
               style: Theme.of(context).textTheme.titleMedium,
@@ -294,40 +376,19 @@ class CoupleProgressCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               '$coupleLevel',
-              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: CoupleMemberLevel(label: 'You', level: yourLevel),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    '+',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                ),
-                Expanded(
-                  child: CoupleMemberLevel(
-                    label: 'Partner',
-                    level: partnerLevel,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               '$coupleXp total couple XP',
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Couple Level is the sum of both partner levels.',
+              'Your Couple Level is the sum of both partner levels.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -338,28 +399,90 @@ class CoupleProgressCard extends StatelessWidget {
   }
 }
 
-class CoupleMemberLevel extends StatelessWidget {
-  const CoupleMemberLevel({
+class PartnerProgressCard extends StatelessWidget {
+  const PartnerProgressCard({
+    required this.name,
     required this.label,
     required this.level,
+    required this.totalXp,
+    required this.xpIntoLevel,
+    required this.xpNeeded,
+    required this.progress,
     super.key,
   });
 
+  final String name;
   final String label;
   final int level;
+  final int totalXp;
+  final int xpIntoLevel;
+  final int xpNeeded;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 4),
-        Text(
-          'Level $level',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  child: Text(
+                    name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      Text(label, style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Level', style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      '$level',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$xpIntoLevel / $xpNeeded XP to next level',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$totalXp total XP',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -443,6 +566,7 @@ class ActivityUpdatesCard extends StatelessWidget {
 
         reviewedClaims.sort((a, b) {
           final aTime = a.data()['reviewedAt'] as Timestamp?;
+
           final bTime = b.data()['reviewedAt'] as Timestamp?;
 
           if (aTime == null && bTime == null) {
@@ -470,6 +594,7 @@ class ActivityUpdatesCard extends StatelessWidget {
         final title = data['title'] as String? ?? 'Activity';
 
         final xp = data['xp'] as int? ?? 0;
+
         final status = data['status'] as String?;
 
         final reviewMessage = data['reviewMessage'] as String?;
@@ -550,61 +675,6 @@ class ActivityUpdatesCard extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class PlayerCard extends StatelessWidget {
-  const PlayerCard({
-    required this.level,
-    required this.totalXp,
-    required this.xpIntoLevel,
-    required this.xpNeeded,
-    required this.progress,
-    super.key,
-  });
-
-  final int level;
-  final int totalXp;
-  final int xpIntoLevel;
-  final int xpNeeded;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Text('Your Level', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              '$level',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 20),
-            LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$xpIntoLevel / $xpNeeded XP to next level',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$totalXp total XP',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
