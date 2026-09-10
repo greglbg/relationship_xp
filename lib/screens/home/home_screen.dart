@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../game/xp_system.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -50,7 +52,11 @@ class HomeScreen extends StatelessWidget {
 
           final displayName = data['displayName'] as String? ?? 'Adventurer';
           final individualXp = data['individualXp'] as int? ?? 0;
-          final level = data['level'] as int? ?? 1;
+
+          final level = XpSystem.levelForXp(individualXp);
+          final xpIntoLevel = XpSystem.xpIntoCurrentLevel(individualXp);
+          final xpNeeded = XpSystem.xpNeededForNextLevel(individualXp);
+          final progress = XpSystem.levelProgress(individualXp);
 
           return SafeArea(
             child: Padding(
@@ -69,7 +75,13 @@ class HomeScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 32),
-                  PlayerCard(level: level, xp: individualXp),
+                  PlayerCard(
+                    level: level,
+                    totalXp: individualXp,
+                    xpIntoLevel: xpIntoLevel,
+                    xpNeeded: xpNeeded,
+                    progress: progress,
+                  ),
                   const Spacer(),
                   FilledButton.icon(
                     onPressed: null,
@@ -93,10 +105,20 @@ class HomeScreen extends StatelessWidget {
 }
 
 class PlayerCard extends StatelessWidget {
-  const PlayerCard({required this.level, required this.xp, super.key});
+  const PlayerCard({
+    required this.level,
+    required this.totalXp,
+    required this.xpIntoLevel,
+    required this.xpNeeded,
+    required this.progress,
+    super.key,
+  });
 
   final int level;
-  final int xp;
+  final int totalXp;
+  final int xpIntoLevel;
+  final int xpNeeded;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -117,16 +139,21 @@ class PlayerCard extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              '$xp XP',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            const SizedBox(height: 20),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              borderRadius: BorderRadius.circular(999),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
-              'Your adventure is just beginning.',
+              '$xpIntoLevel / $xpNeeded XP to next level',
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$totalXp total XP',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ),
