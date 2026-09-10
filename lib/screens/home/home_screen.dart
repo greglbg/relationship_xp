@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../game/xp_system.dart';
-import '../awards/award_brownie_points_screen.dart';
+import '../claims/submit_claim_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,17 +12,20 @@ class HomeScreen extends StatelessWidget {
     await FirebaseAuth.instance.signOut();
   }
 
-  Future<void> openAwardScreen(BuildContext context, String coupleId) async {
-    final awardCreated = await Navigator.of(context).push<bool>(
+  Future<void> openSubmitClaimScreen(
+    BuildContext context,
+    String coupleId,
+  ) async {
+    final claimSubmitted = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => AwardBrowniePointsScreen(coupleId: coupleId),
+        builder: (context) => SubmitClaimScreen(coupleId: coupleId),
       ),
     );
 
-    if (awardCreated == true && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Brownie points awarded!')));
+    if (claimSubmitted == true && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Activity submitted for partner review.')),
+      );
     }
   }
 
@@ -103,13 +106,13 @@ class HomeScreen extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: coupleId == null
                         ? null
-                        : () => openAwardScreen(context, coupleId),
-                    icon: const Icon(Icons.favorite),
-                    label: const Text('Award Brownie Points'),
+                        : () => openSubmitClaimScreen(context, coupleId),
+                    icon: const Icon(Icons.add_task),
+                    label: const Text('Submit Activity'),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Celebrate something your partner did.',
+                    'Your partner will review your activity before XP is earned.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
