@@ -52,7 +52,8 @@ class SubmitClaimScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Built-in activities have fixed XP values and reward limits.',
+              'Built-in activities have fixed XP '
+              'values and reward limits.',
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 24),
@@ -210,7 +211,8 @@ class CategoryTaskScreen extends StatelessWidget {
       return 'Earn XP once per $period';
     }
 
-    return 'Earn XP up to ${task.rewardLimit} times per $period';
+    return 'Earn XP up to '
+        '${task.rewardLimit} times per $period';
   }
 
   void openTask(BuildContext context, RelationshipTask task) {
@@ -265,7 +267,8 @@ class CategoryTaskScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            '${task.xp} XP • ${repeatDescription(task)}',
+                            '${task.xp} XP • '
+                            '${repeatDescription(task)}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -303,6 +306,7 @@ class CatalogTaskDetailsScreen extends StatefulWidget {
 
 class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
   final CatalogTaskService _catalogTaskService = CatalogTaskService();
+
   final ImagePicker _imagePicker = ImagePicker();
 
   late final String _completionId;
@@ -329,11 +333,13 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
     };
 
     if (widget.task.rewardLimit == 1) {
-      return 'This activity can award XP once per $period.';
+      return 'This activity can award XP '
+          'once per $period.';
     }
 
     return 'This activity can award XP up to '
-        '${widget.task.rewardLimit} times per $period.';
+        '${widget.task.rewardLimit} times '
+        'per $period.';
   }
 
   Future<void> choosePhotoSource() async {
@@ -397,7 +403,10 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('The photo could not be selected. Please try again.'),
+          content: Text(
+            'The photo could not be selected. '
+            'Please try again.',
+          ),
         ),
       );
     }
@@ -430,7 +439,8 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
     }
 
     final photoPath =
-        'couples/${widget.coupleId}/'
+        'temporaryPhotos/couples/'
+        '${widget.coupleId}/'
         'catalogProofs/${user.uid}/'
         '$_completionId.jpg';
 
@@ -484,9 +494,11 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
             ),
             content: Text(
               result.alreadyCompleted
-                  ? 'This completion was already recorded. '
-                        'No duplicate XP was awarded.'
-                  : 'You earned ${result.xpAwarded} XP for '
+                  ? 'This completion was already '
+                        'recorded. No duplicate XP '
+                        'was awarded.'
+                  : 'You earned '
+                        '${result.xpAwarded} XP for '
                         '${result.taskName}.',
             ),
             actions: [
@@ -519,7 +531,8 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
         SnackBar(
           content: Text(
             message == null || message.isEmpty
-                ? 'The activity could not be completed. Please try again.'
+                ? 'The activity could not be '
+                      'completed. Please try again.'
                 : message,
           ),
         ),
@@ -536,7 +549,9 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.message ?? 'You must be signed in to upload a photo.',
+            error.message ??
+                'You must be signed in to '
+                    'upload a photo.',
           ),
         ),
       );
@@ -551,7 +566,10 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('The photo could not be uploaded. Please try again.'),
+          content: Text(
+            'The photo could not be uploaded. '
+            'Please try again.',
+          ),
         ),
       );
     } catch (_) {
@@ -566,12 +584,62 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Something went wrong while completing the activity. '
+            'Something went wrong while '
+            'completing the activity. '
             'Please try again.',
           ),
         ),
       );
     }
+  }
+
+  Widget buildTemporaryPhotoNotice(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Temporary Photos',
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Photos are optional and are '
+                    'normally removed from '
+                    'Relationship XP approximately '
+                    '3 days after upload.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Do not upload sensitive, '
+                    'intimate, confidential, or '
+                    'other content you would not '
+                    'want stored on the service.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Photos may be accessible to '
+                    'authorized administrators when '
+                    'reasonably necessary to operate, '
+                    'maintain, secure, or troubleshoot '
+                    'the service.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -619,6 +687,12 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Temporary-photo information is shown before the user
+              // reaches the controls that attach a photo.
+              buildTemporaryPhotoNotice(context),
+
+              const SizedBox(height: 12),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -640,8 +714,9 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Add a photo if you want to share the moment '
-                        'with your partner.',
+                        'Add a photo if you want to '
+                        'share the moment with your '
+                        'partner.',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       if (selectedPhoto != null) ...[
@@ -687,9 +762,11 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Relationship XP verifies the activity, reward limit, '
-                        'XP value, and optional photo location before '
-                        'recording the completion.',
+                        'Relationship XP verifies the '
+                        'activity, reward limit, XP '
+                        'value, and optional photo '
+                        'location before recording '
+                        'the completion.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),

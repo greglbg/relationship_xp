@@ -4,10 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 class ActivityHistoryScreen extends StatelessWidget {
-  const ActivityHistoryScreen({
-    required this.coupleId,
-    super.key,
-  });
+  const ActivityHistoryScreen({required this.coupleId, super.key});
 
   final String coupleId;
 
@@ -24,27 +21,19 @@ class ActivityHistoryScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, coupleSnapshot) {
           if (coupleSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (coupleSnapshot.hasError) {
             return const Center(
-              child: Text(
-                'Unable to load couple information.',
-              ),
+              child: Text('Unable to load couple information.'),
             );
           }
 
           final coupleData = coupleSnapshot.data?.data();
 
           if (coupleData == null) {
-            return const Center(
-              child: Text(
-                'Couple information not found.',
-              ),
-            );
+            return const Center(child: Text('Couple information not found.'));
           }
 
           final rawMemberNames =
@@ -69,30 +58,22 @@ class ActivityHistoryScreen extends StatelessWidget {
                 .collection('claims')
                 .snapshots(),
             builder: (context, claimsSnapshot) {
-              if (claimsSnapshot.connectionState ==
-                  ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+              if (claimsSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
               }
 
               if (claimsSnapshot.hasError) {
                 return const Center(
-                  child: Text(
-                    'Unable to load activity history.',
-                  ),
+                  child: Text('Unable to load activity history.'),
                 );
               }
 
-              final claims =
-                  claimsSnapshot.data?.docs.toList() ?? [];
+              final claims = claimsSnapshot.data?.docs.toList() ?? [];
 
               claims.sort((a, b) {
-                final aTime =
-                    a.data()['createdAt'] as Timestamp?;
+                final aTime = a.data()['createdAt'] as Timestamp?;
 
-                final bTime =
-                    b.data()['createdAt'] as Timestamp?;
+                final bTime = b.data()['createdAt'] as Timestamp?;
 
                 if (aTime == null && bTime == null) {
                   return 0;
@@ -125,8 +106,7 @@ class ActivityHistoryScreen extends StatelessWidget {
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: claims.length,
-                separatorBuilder: (_, _) =>
-                    const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final claim = claims[index];
                   final data = claim.data();
@@ -135,34 +115,24 @@ class ActivityHistoryScreen extends StatelessWidget {
                       data['submittedByUserId'] as String? ?? '';
 
                   final submittedByName =
-                      memberNames[submittedByUserId] ??
-                      'Partner';
+                      memberNames[submittedByUserId] ?? 'Partner';
 
-                  final isCurrentUser =
-                      user?.uid == submittedByUserId;
+                  final isCurrentUser = user?.uid == submittedByUserId;
 
-                  final rawPhotoPath =
-                      data['photoPath'] as String?;
+                  final rawPhotoPath = data['photoPath'] as String?;
 
-                  final photoPath =
-                      rawPhotoPath?.trim().isNotEmpty == true
+                  final photoPath = rawPhotoPath?.trim().isNotEmpty == true
                       ? rawPhotoPath!.trim()
                       : null;
 
                   return ActivityHistoryCard(
-                    title:
-                        data['title'] as String? ??
-                        'Untitled activity',
+                    title: data['title'] as String? ?? 'Untitled activity',
                     xp: data['xp'] as int? ?? 0,
-                    status:
-                        data['status'] as String? ??
-                        'pending',
+                    status: data['status'] as String? ?? 'pending',
                     submittedByName: submittedByName,
                     isCurrentUser: isCurrentUser,
-                    createdAt:
-                        data['createdAt'] as Timestamp?,
-                    reviewMessage:
-                        data['reviewMessage'] as String?,
+                    createdAt: data['createdAt'] as Timestamp?,
+                    reviewMessage: data['reviewMessage'] as String?,
                     photoPath: photoPath,
                   );
                 },
@@ -264,15 +234,10 @@ class ActivityHistoryCard extends StatelessWidget {
       throw StateError('No photo path is available.');
     }
 
-    return FirebaseStorage.instance
-        .ref(path)
-        .getDownloadURL();
+    return FirebaseStorage.instance.ref(path).getDownloadURL();
   }
 
-  void showFullPhoto(
-    BuildContext context,
-    String photoUrl,
-  ) {
+  void showFullPhoto(BuildContext context, String photoUrl) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -285,20 +250,13 @@ class ActivityHistoryCard extends StatelessWidget {
                 child: Image.network(
                   photoUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (
-                    context,
-                    error,
-                    stackTrace,
-                  ) {
+                  errorBuilder: (context, error, stackTrace) {
                     return const Padding(
                       padding: EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                            size: 48,
-                          ),
+                          Icon(Icons.broken_image_outlined, size: 48),
                           SizedBox(height: 12),
                           Text(
                             'This photo is no longer available.',
@@ -345,12 +303,8 @@ class ActivityHistoryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -358,33 +312,20 @@ class ActivityHistoryCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               statusLabel,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
-            Text(
-              xpLabel,
-              style:
-                  Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(xpLabel, style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 6),
             Text(
               isCurrentUser
                   ? 'Submitted by $submittedByName (You)'
                   : 'Submitted by $submittedByName',
-              style:
-                  Theme.of(context).textTheme.bodySmall,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 4),
-            Text(
-              formattedDate(),
-              style:
-                  Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(formattedDate(), style: Theme.of(context).textTheme.bodySmall),
             if (photoPath != null) ...[
               const SizedBox(height: 14),
               FutureBuilder<String>(
@@ -396,80 +337,56 @@ class ActivityHistoryCard extends StatelessWidget {
                       height: 180,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant,
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
-                      child:
-                          const CircularProgressIndicator(),
+                      child: const CircularProgressIndicator(),
                     );
                   }
 
-                  if (photoSnapshot.hasError ||
-                      !photoSnapshot.hasData) {
+                  if (photoSnapshot.hasError || !photoSnapshot.hasData) {
                     return Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant,
+                          color: Theme.of(context).colorScheme.outlineVariant,
                         ),
                       ),
                       child: const Row(
                         children: [
-                          Icon(
-                            Icons.broken_image_outlined,
-                          ),
+                          Icon(Icons.broken_image_outlined),
                           SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              'Photo is no longer available.',
-                            ),
+                            child: Text('Photo is no longer available.'),
                           ),
                         ],
                       ),
                     );
                   }
 
-                  final photoUrl =
-                      photoSnapshot.data!;
+                  final photoUrl = photoSnapshot.data!;
 
                   return Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       InkWell(
-                        borderRadius:
-                            BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                         onTap: () {
-                          showFullPhoto(
-                            context,
-                            photoUrl,
-                          );
+                          showFullPhoto(context, photoUrl);
                         },
                         child: ClipRRect(
-                          borderRadius:
-                              BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
                           child: Image.network(
                             photoUrl,
                             height: 200,
                             fit: BoxFit.cover,
-                            errorBuilder: (
-                              context,
-                              error,
-                              stackTrace,
-                            ) {
+                            errorBuilder: (context, error, stackTrace) {
                               return Container(
                                 height: 180,
-                                alignment:
-                                    Alignment.center,
+                                alignment: Alignment.center,
                                 child: const Text(
                                   'Photo could not be displayed.',
                                 ),
@@ -482,9 +399,7 @@ class ActivityHistoryCard extends StatelessWidget {
                       Text(
                         'Tap photo to enlarge',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   );
@@ -499,26 +414,17 @@ class ActivityHistoryCard extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant,
+                    color: Theme.of(context).colorScheme.outlineVariant,
                   ),
-                  borderRadius:
-                      BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
                       'Partner feedback',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                            fontWeight:
-                                FontWeight.bold,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 6),
                     Text(feedback),

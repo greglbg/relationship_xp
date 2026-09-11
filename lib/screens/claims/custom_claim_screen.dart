@@ -40,6 +40,7 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
                   title: const Text('Take Photo'),
                   onTap: () {
                     Navigator.of(context).pop();
+
                     pickImage(ImageSource.camera);
                   },
                 ),
@@ -48,6 +49,7 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
                   title: const Text('Choose from Gallery'),
                   onTap: () {
                     Navigator.of(context).pop();
+
                     pickImage(ImageSource.gallery);
                   },
                 ),
@@ -88,12 +90,14 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
 
   Future<void> submitClaim() async {
     final user = FirebaseAuth.instance.currentUser;
+
     final title = titleController.text.trim();
 
     if (user == null) {
       setState(() {
         errorMessage = 'No signed-in user was found.';
       });
+
       return;
     }
 
@@ -101,13 +105,17 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
       setState(() {
         errorMessage = 'Please describe what you completed.';
       });
+
       return;
     }
 
     if (title.length > 100) {
       setState(() {
-        errorMessage = 'Please keep the description under 100 characters.';
+        errorMessage =
+            'Please keep the description '
+            'under 100 characters.';
       });
+
       return;
     }
 
@@ -124,11 +132,12 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
           .doc();
 
       String? photoPath;
-      String? photoUrl;
 
       if (selectedImage != null) {
         photoPath =
-            'couples/${widget.coupleId}/claims/${claimReference.id}/proof.jpg';
+            'temporaryPhotos/couples/'
+            '${widget.coupleId}/claims/'
+            '${claimReference.id}/proof.jpg';
 
         final storageReference = FirebaseStorage.instance.ref().child(
           photoPath,
@@ -138,8 +147,6 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
           File(selectedImage!.path),
           SettableMetadata(contentType: 'image/jpeg'),
         );
-
-        photoUrl = await storageReference.getDownloadURL();
       }
 
       final claimData = <String, dynamic>{
@@ -150,9 +157,8 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       };
 
-      if (photoPath != null && photoUrl != null) {
+      if (photoPath != null) {
         claimData['photoPath'] = photoPath;
-        claimData['photoUrl'] = photoUrl;
       }
 
       await claimReference.set(claimData);
@@ -164,7 +170,9 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
       if (mounted) {
         setState(() {
           if (error.code == 'permission-denied') {
-            errorMessage = 'The activity could not be saved because permission was denied.';
+            errorMessage =
+                'The activity could not be saved '
+                'because permission was denied.';
           } else {
             errorMessage = error.message ?? 'Unable to submit the activity.';
           }
@@ -173,7 +181,9 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          errorMessage = 'Something went wrong while submitting the activity.';
+          errorMessage =
+              'Something went wrong while '
+              'submitting the activity.';
         });
       }
     } finally {
@@ -208,7 +218,8 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Custom activities are worth ${TaskCatalog.customTaskXp} XP '
+                'Custom activities are worth '
+                '${TaskCatalog.customTaskXp} XP '
                 'and require your partner\'s approval.',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
@@ -219,7 +230,9 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Activity',
-                  hintText: 'Example: Surprised my partner with breakfast',
+                  hintText:
+                      'Example: Surprised my partner '
+                      'with breakfast',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -231,9 +244,61 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Optional — add a photo if you would like to share one '
-                'with your partner.',
+                'Optional — add a photo if you '
+                'would like to share one with '
+                'your partner.',
                 style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Temporary Photos',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Photos are optional and '
+                              'are normally removed from '
+                              'Relationship XP '
+                              'approximately 3 days '
+                              'after upload.',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Do not upload sensitive, '
+                              'intimate, confidential, '
+                              'or other content you '
+                              'would not want stored '
+                              'on the service.',
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Photos may be accessible '
+                              'to authorized '
+                              'administrators when '
+                              'reasonably necessary to '
+                              'operate, maintain, secure, '
+                              'or troubleshoot the '
+                              'service.',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               if (selectedImage == null)
@@ -286,8 +351,10 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Custom activity XP is fixed. Your partner must '
-                        'approve the activity before the XP is earned.',
+                        'Custom activity XP is fixed. '
+                        'Your partner must approve '
+                        'the activity before the XP '
+                        'is earned.',
                         textAlign: TextAlign.center,
                       ),
                     ],

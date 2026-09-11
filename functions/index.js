@@ -107,8 +107,9 @@ function requireCompletionId(value) {
 /**
  * Validates an optional catalog photo path.
  *
- * The path must belong to the authenticated user and must use the same
- * completion ID as the catalog completion being submitted.
+ * The path must be inside the temporary photo area, belong to the
+ * authenticated user, and use the same completion ID as the catalog
+ * completion being submitted.
  *
  * @param {*} value Optional photo path supplied by the client.
  * @param {string} coupleId Couple document ID.
@@ -135,7 +136,7 @@ function optionalCatalogPhotoPath(
   );
 
   const expectedPath =
-    `couples/${coupleId}/catalogProofs/` +
+    `temporaryPhotos/couples/${coupleId}/catalogProofs/` +
     `${userId}/${completionId}.jpg`;
 
   if (photoPath !== expectedPath) {

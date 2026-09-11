@@ -225,13 +225,20 @@ service cloud.firestore {
         ||
         (
           data.keys().hasAll([
-            'photoPath',
-            'photoUrl'
+            'photoPath'
           ])
           && data.photoPath is string
           && data.photoPath.size() > 0
-          && data.photoUrl is string
-          && data.photoUrl.size() > 0
+          && (
+            !data.keys().hasAny([
+              'photoUrl'
+            ])
+            ||
+            (
+              data.photoUrl is string
+              && data.photoUrl.size() > 0
+            )
+          )
         )
       );
     }

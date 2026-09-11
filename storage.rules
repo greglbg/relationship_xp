@@ -3,6 +3,12 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // ------------------------------------------------------------
+    // Legacy custom activity photos
+    //
+    // These remain allowed temporarily so existing development
+    // photos and the current app continue working during migration.
+    // ------------------------------------------------------------
     match /couples/{coupleId}/claims/{claimId}/proof.jpg {
       allow read: if isCoupleMember(coupleId);
 
@@ -16,7 +22,46 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // ------------------------------------------------------------
+    // Legacy catalog activity photos
+    // ------------------------------------------------------------
     match /couples/{coupleId}/catalogProofs/{userId}/{fileName} {
+      allow read: if isCoupleMember(coupleId);
+
+      allow create: if isCoupleMember(coupleId)
+                    && isSignedInUser(userId)
+                    && isValidImage();
+
+      allow update: if isCoupleMember(coupleId)
+                    && isSignedInUser(userId)
+                    && isValidImage();
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------
+    // New temporary custom activity photos
+    //
+    // All photos we want automatically removed after 3 days will
+    // eventually live beneath temporaryPhotos/.
+    // ------------------------------------------------------------
+    match /temporaryPhotos/couples/{coupleId}/claims/{claimId}/proof.jpg {
+      allow read: if isCoupleMember(coupleId);
+
+      allow create: if isCoupleMember(coupleId)
+                    && isValidImage();
+
+      allow update: if isCoupleMember(coupleId)
+                    && isClaimOwner(coupleId, claimId)
+                    && isValidImage();
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------
+    // New temporary catalog activity photos
+    // ------------------------------------------------------------
+    match /temporaryPhotos/couples/{coupleId}/catalogProofs/{userId}/{fileName} {
       allow read: if isCoupleMember(coupleId);
 
       allow create: if isCoupleMember(coupleId)

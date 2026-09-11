@@ -24,7 +24,11 @@ class ResubmitClaimScreen extends StatefulWidget {
   final String title;
   final int xp;
   final String photoPath;
+
+  // Kept temporarily for compatibility with older claims that may still
+  // contain a stored download URL.
   final String photoUrl;
+
   final String reviewMessage;
 
   @override
@@ -68,10 +72,14 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       return;
     }
 
+    // Legacy fallback for old claims that have a URL but no path.
     if (widget.photoPath.trim().isEmpty) {
       if (mounted) {
         setState(() {
-          existingPhotoUrl = widget.photoUrl;
+          existingPhotoUrl = widget.photoUrl.trim().isEmpty
+              ? null
+              : widget.photoUrl;
+
           isLoadingExistingPhoto = false;
         });
       }
@@ -80,9 +88,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     }
 
     try {
-      final storageReference = FirebaseStorage.instance.ref().child(
-        widget.photoPath,
-      );
+      final storageReference = FirebaseStorage.instance.ref(widget.photoPath);
 
       final freshPhotoUrl = await storageReference.getDownloadURL();
 
@@ -95,9 +101,12 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     } on FirebaseException {
       if (mounted) {
         setState(() {
+          // Legacy fallback during our migration away from
+          // stored download URLs.
           existingPhotoUrl = widget.photoUrl.trim().isEmpty
               ? null
               : widget.photoUrl;
+
           isLoadingExistingPhoto = false;
         });
       }
@@ -119,6 +128,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                   title: const Text('Take Photo'),
                   onTap: () {
                     Navigator.of(context).pop();
+
                     pickImage(ImageSource.camera);
                   },
                 ),
@@ -127,6 +137,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                   title: const Text('Choose from Gallery'),
                   onTap: () {
                     Navigator.of(context).pop();
+
                     pickImage(ImageSource.gallery);
                   },
                 ),
@@ -172,13 +183,17 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       setState(() {
         errorMessage = 'Please describe the activity.';
       });
+
       return;
     }
 
     if (title.length > 100) {
       setState(() {
-        errorMessage = 'Please keep the description under 100 characters.';
+        errorMessage =
+            'Please keep the description '
+            'under 100 characters.';
       });
+
       return;
     }
 
@@ -188,18 +203,15 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     });
 
     var photoPath = widget.photoPath;
-    var photoUrl = existingPhotoUrl ?? widget.photoUrl;
 
     if (selectedImage != null) {
       try {
-        if (photoPath.trim().isEmpty) {
-          photoPath =
-              'couples/${widget.coupleId}/claims/${widget.claimId}/proof.jpg';
-        }
+        photoPath =
+            'temporaryPhotos/couples/'
+            '${widget.coupleId}/claims/'
+            '${widget.claimId}/proof.jpg';
 
-        final storageReference = FirebaseStorage.instance.ref().child(
-          photoPath,
-        );
+        final storageReference = FirebaseStorage.instance.ref(photoPath);
 
         await storageReference.putFile(
           File(selectedImage!.path),
@@ -207,12 +219,14 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
         );
 
         photoPath = storageReference.fullPath;
-        photoUrl = await storageReference.getDownloadURL();
       } on FirebaseException catch (error) {
         if (mounted) {
           setState(() {
             errorMessage =
-                'Photo upload failed: ${error.code}. ${error.message ?? ''}';
+                'Photo upload failed: '
+                '${error.code}. '
+                '${error.message ?? ''}';
+
             isLoading = false;
           });
         }
@@ -232,9 +246,14 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
         'reviewedAt': FieldValue.delete(),
       };
 
-      if (photoPath.trim().isNotEmpty && photoUrl.trim().isNotEmpty) {
+      if (photoPath.trim().isNotEmpty) {
         updateData['photoPath'] = photoPath;
-        updateData['photoUrl'] = photoUrl;
+      }
+
+      // If this claim used the old data model, remove the stored URL
+      // when it is resubmitted with a usable Storage path.
+      if (photoPath.trim().isNotEmpty && widget.photoUrl.trim().isNotEmpty) {
+        updateData['photoUrl'] = FieldValue.delete();
       }
 
       await FirebaseFirestore.instance
@@ -251,13 +270,17 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       if (mounted) {
         setState(() {
           errorMessage =
-              'Resubmission failed: ${error.code}. ${error.message ?? ''}';
+              'Resubmission failed: '
+              '${error.code}. '
+              '${error.message ?? ''}';
         });
       }
     } catch (error) {
       if (mounted) {
         setState(() {
-          errorMessage = 'Something went wrong while resubmitting: $error';
+          errorMessage =
+              'Something went wrong while '
+              'resubmitting: $error';
         });
       }
     } finally {
@@ -309,7 +332,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
         height: 120,
         child: Center(
           child: Text(
-            'Unable to display the existing photo.',
+            'Photo is no longer available.',
             textAlign: TextAlign.center,
           ),
         ),
@@ -324,9 +347,63 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
       errorBuilder: (context, error, stackTrace) {
         return const SizedBox(
           height: 120,
-          child: Center(child: Text('Unable to display current proof photo.')),
+          child: Center(
+            child: Text(
+              'Photo is no longer available.',
+              textAlign: TextAlign.center,
+            ),
+          ),
         );
       },
+    );
+  }
+
+  Widget buildTemporaryPhotoNotice(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.info_outline),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Temporary Photos',
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Photos are optional and are '
+                    'normally removed from '
+                    'Relationship XP approximately '
+                    '3 days after upload.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Do not upload sensitive, '
+                    'intimate, confidential, or '
+                    'other content you would not '
+                    'want stored on the service.',
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Photos may be accessible to '
+                    'authorized administrators when '
+                    'reasonably necessary to operate, '
+                    'maintain, secure, or troubleshoot '
+                    'the service.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -381,9 +458,12 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Photos are optional. You can keep the current photo, '
-                'replace it, or add one if there was not one before.',
+                'Photos are optional. You can keep '
+                'the current photo, replace it, or '
+                'add one if there was not one before.',
               ),
+              const SizedBox(height: 12),
+              buildTemporaryPhotoNotice(context),
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -414,7 +494,8 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Custom activity XP is fixed and cannot be changed.',
+                        'Custom activity XP is fixed '
+                        'and cannot be changed.',
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -426,9 +507,10 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    'Resubmitting sends this activity back to your partner '
-                    'for another review. There is no penalty for needing '
-                    'changes.',
+                    'Resubmitting sends this activity '
+                    'back to your partner for another '
+                    'review. There is no penalty for '
+                    'needing changes.',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
