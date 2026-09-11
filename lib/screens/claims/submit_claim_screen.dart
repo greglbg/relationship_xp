@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
+import '../../services/catalog_task_service.dart';
 import '../../tasks/task_catalog.dart';
 import 'custom_claim_screen.dart';
 
@@ -23,7 +26,8 @@ class SubmitClaimScreen extends StatelessWidget {
   void openCategory(BuildContext context, TaskCategory category) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => CategoryTaskScreen(category: category),
+        builder: (context) =>
+            CategoryTaskScreen(coupleId: coupleId, category: category),
       ),
     );
   }
@@ -97,7 +101,8 @@ class SubmitClaimScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Photos are optional for every activity.',
+              'Photos are optional for custom activities. '
+              'Built-in activity photo support is coming next.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -182,8 +187,13 @@ class CategoryCard extends StatelessWidget {
 }
 
 class CategoryTaskScreen extends StatelessWidget {
-  const CategoryTaskScreen({required this.category, super.key});
+  const CategoryTaskScreen({
+    required this.coupleId,
+    required this.category,
+    super.key,
+  });
 
+  final String coupleId;
   final TaskCategory category;
 
   String repeatDescription(RelationshipTask task) {
@@ -202,8 +212,11 @@ class CategoryTaskScreen extends StatelessWidget {
   void openTask(BuildContext context, RelationshipTask task) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            CatalogTaskDetailsScreen(task: task, categoryName: category.name),
+        builder: (context) => CatalogTaskDetailsScreen(
+          coupleId: coupleId,
+          task: task,
+          categoryName: category.name,
+        ),
       ),
     );
   }
@@ -248,8 +261,7 @@ class CategoryTaskScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            '${task.xp} XP • '
-                            '${repeatDescription(task)}',
+                            '${task.xp} XP • ${repeatDescription(task)}',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -268,28 +280,150 @@ class CategoryTaskScreen extends StatelessWidget {
   }
 }
 
-class CatalogTaskDetailsScreen extends StatelessWidget {
+class CatalogTaskDetailsScreen extends StatefulWidget {
   const CatalogTaskDetailsScreen({
+    required this.coupleId,
     required this.task,
     required this.categoryName,
     super.key,
   });
 
+  final String coupleId;
   final RelationshipTask task;
   final String categoryName;
 
+  @override
+  State<CatalogTaskDetailsScreen> createState() =>
+      _CatalogTaskDetailsScreenState();
+}
+
+class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
+  final CatalogTaskService _catalogTaskService = CatalogTaskService();
+
+  late final String _completionId;
+
+  bool _isSubmitting = false;
+  bool _completed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _completionId = FirebaseFirestore.instance
+        .collection('_completionIds')
+        .doc()
+        .id;
+  }
+
   String get repeatDescription {
-    final period = switch (task.repeatPeriod) {
+    final period = switch (widget.task.repeatPeriod) {
       TaskRepeatPeriod.daily => 'day',
       TaskRepeatPeriod.weekly => 'week',
     };
 
-    if (task.rewardLimit == 1) {
+    if (widget.task.rewardLimit == 1) {
       return 'This activity can award XP once per $period.';
     }
 
     return 'This activity can award XP up to '
-        '${task.rewardLimit} times per $period.';
+        '${widget.task.rewardLimit} times per $period.';
+  }
+
+  Future<void> completeActivity() async {
+    if (_isSubmitting || _completed) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final result = await _catalogTaskService.completeTask(
+        coupleId: widget.coupleId,
+        taskId: widget.task.id,
+        completionId: _completionId,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _completed = true;
+        _isSubmitting = false;
+      });
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            icon: const Icon(Icons.celebration_outlined),
+            title: Text(
+              result.alreadyCompleted
+                  ? 'Activity Already Recorded'
+                  : 'Activity Complete!',
+            ),
+            content: Text(
+              result.alreadyCompleted
+                  ? 'This completion was already recorded. '
+                        'No duplicate XP was awarded.'
+                  : 'You earned ${result.xpAwarded} XP for '
+                        '${result.taskName}.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Nice!'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
+    } on FirebaseFunctionsException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      final message = error.message?.trim();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message == null || message.isEmpty
+                ? 'The activity could not be completed. Please try again.'
+                : message,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Something went wrong while completing the activity. '
+            'Please try again.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -302,16 +436,19 @@ class CatalogTaskDetailsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(categoryName, style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                widget.categoryName,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 8),
               Text(
-                task.name,
+                widget.task.name,
                 style: Theme.of(context).textTheme.headlineMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               Text(
-                task.description,
+                widget.task.description,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 28),
@@ -321,7 +458,7 @@ class CatalogTaskDetailsScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        '${task.xp} XP',
+                        '${widget.task.xp} XP',
                         style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
@@ -329,7 +466,7 @@ class CatalogTaskDetailsScreen extends StatelessWidget {
                       Text(repeatDescription, textAlign: TextAlign.center),
                       const SizedBox(height: 8),
                       const Text(
-                        'Optional photo available',
+                        'Photo support for built-in activities is coming next.',
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -345,15 +482,14 @@ class CatalogTaskDetailsScreen extends StatelessWidget {
                       const Icon(Icons.security_outlined),
                       const SizedBox(height: 8),
                       Text(
-                        'Built-in activity completion is coming in the '
-                        'next step.',
+                        'XP is securely verified',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'We are connecting these activities to secure XP '
-                        'limits before allowing them to award XP.',
+                        'Relationship XP verifies the activity, reward limit, '
+                        'and XP value before recording the completion.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -363,9 +499,23 @@ class CatalogTaskDetailsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Complete Activity — Coming Next'),
+                onPressed: _isSubmitting || _completed
+                    ? null
+                    : completeActivity,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_circle_outline),
+                label: Text(
+                  _isSubmitting
+                      ? 'Completing...'
+                      : _completed
+                      ? 'Activity Completed'
+                      : 'Complete Activity',
+                ),
               ),
             ],
           ),

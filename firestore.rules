@@ -179,6 +179,14 @@ service cloud.firestore {
 
         allow create, update, delete: if false;
       }
+
+      match /catalogXpDays/{dayId} {
+        allow read, write: if false;
+      }
+
+      match /catalogTaskPeriods/{counterId} {
+        allow read, write: if false;
+      }
     }
 
     match /coupleInvites/{inviteCode} {
