@@ -105,6 +105,50 @@ function requireCompletionId(value) {
 }
 
 /**
+ * Validates an optional catalog photo path.
+ *
+ * The path must belong to the authenticated user and must use the same
+ * completion ID as the catalog completion being submitted.
+ *
+ * @param {*} value Optional photo path supplied by the client.
+ * @param {string} coupleId Couple document ID.
+ * @param {string} userId Firebase Authentication user ID.
+ * @param {string} completionId Unique completion ID.
+ * @return {string|null} Validated photo path, or null when omitted.
+ */
+function optionalCatalogPhotoPath(
+    value,
+    coupleId,
+    userId,
+    completionId,
+) {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return null;
+  }
+
+  const photoPath = requireString(
+      value,
+      "The activity photo path is not valid.",
+  );
+
+  const expectedPath =
+    `couples/${coupleId}/catalogProofs/` +
+    `${userId}/${completionId}.jpg`;
+
+  if (photoPath !== expectedPath) {
+    throw new HttpsError(
+        "invalid-argument",
+        "The activity photo path is not valid.",
+    );
+  }
+
+  return photoPath;
+}
+
+/**
  * Finds an enabled task in the server-side task catalog.
  *
  * @param {string} taskId Catalog task ID.
@@ -345,6 +389,14 @@ exports.completeCatalogTask =
           data.completionId,
       );
 
+    const photoPath =
+      optionalCatalogPhotoPath(
+          data.photoPath,
+          coupleId,
+          userId,
+          completionId,
+      );
+
     const task = getTask(taskId);
 
     const now = new Date();
@@ -534,28 +586,35 @@ exports.completeCatalogTask =
                 },
             );
 
+            const claimData = {
+              title: task.name,
+              xp: task.xp,
+              baseXp: task.xp,
+              awardedXp: task.xp,
+              submittedByUserId:
+                userId,
+              status: "approved",
+              source: "catalog",
+              taskId: taskId,
+              repeatPeriod:
+                task.repeatPeriod,
+              rewardLimit:
+                task.rewardLimit,
+              dayKey: dayKey,
+              periodKey: periodKey,
+              createdAt:
+                FieldValue
+                    .serverTimestamp(),
+            };
+
+            if (photoPath !== null) {
+              claimData.photoPath =
+                photoPath;
+            }
+
             transaction.create(
                 claimRef,
-                {
-                  title: task.name,
-                  xp: task.xp,
-                  baseXp: task.xp,
-                  awardedXp: task.xp,
-                  submittedByUserId:
-                    userId,
-                  status: "approved",
-                  source: "catalog",
-                  taskId: taskId,
-                  repeatPeriod:
-                    task.repeatPeriod,
-                  rewardLimit:
-                    task.rewardLimit,
-                  dayKey: dayKey,
-                  periodKey: periodKey,
-                  createdAt:
-                    FieldValue
-                        .serverTimestamp(),
-                },
+                claimData,
             );
 
             return {

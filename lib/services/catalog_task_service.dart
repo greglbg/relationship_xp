@@ -44,14 +44,21 @@ class CatalogTaskService {
     required String coupleId,
     required String taskId,
     required String completionId,
+    String? photoPath,
   }) async {
     final callable = _functions.httpsCallable('completeCatalogTask');
 
-    final response = await callable.call<Map<String, dynamic>>({
+    final requestData = <String, dynamic>{
       'coupleId': coupleId,
       'taskId': taskId,
       'completionId': completionId,
-    });
+    };
+
+    if (photoPath != null) {
+      requestData['photoPath'] = photoPath;
+    }
+
+    final response = await callable.call<Map<String, dynamic>>(requestData);
 
     return CatalogTaskCompletionResult.fromMap(response.data);
   }

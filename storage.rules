@@ -16,11 +16,30 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    match /couples/{coupleId}/catalogProofs/{userId}/{fileName} {
+      allow read: if isCoupleMember(coupleId);
+
+      allow create: if isCoupleMember(coupleId)
+                    && isSignedInUser(userId)
+                    && isValidImage();
+
+      allow update: if isCoupleMember(coupleId)
+                    && isSignedInUser(userId)
+                    && isValidImage();
+
+      allow delete: if false;
+    }
+
     function isCoupleMember(coupleId) {
       return request.auth != null
              && request.auth.uid in firestore.get(
                /databases/(default)/documents/couples/$(coupleId)
              ).data.memberIds;
+    }
+
+    function isSignedInUser(userId) {
+      return request.auth != null
+             && request.auth.uid == userId;
     }
 
     function isClaimOwner(coupleId, claimId) {

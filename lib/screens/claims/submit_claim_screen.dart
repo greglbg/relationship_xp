@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../services/catalog_task_service.dart';
 import '../../tasks/task_catalog.dart';
@@ -101,8 +106,7 @@ class SubmitClaimScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Text(
-              'Photos are optional for custom activities. '
-              'Built-in activity photo support is coming next.',
+              'Photos are optional for every activity.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -299,8 +303,11 @@ class CatalogTaskDetailsScreen extends StatefulWidget {
 
 class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
   final CatalogTaskService _catalogTaskService = CatalogTaskService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   late final String _completionId;
+
+  XFile? _selectedPhoto;
 
   bool _isSubmitting = false;
   bool _completed = false;
@@ -329,6 +336,114 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
         '${widget.task.rewardLimit} times per $period.';
   }
 
+  Future<void> choosePhotoSource() async {
+    if (_isSubmitting) {
+      return;
+    }
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt_outlined),
+                  title: const Text('Take Photo'),
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop(ImageSource.camera);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('Choose from Gallery'),
+                  onTap: () {
+                    Navigator.of(bottomSheetContext).pop(ImageSource.gallery);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (source == null) {
+      return;
+    }
+
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 55,
+        maxWidth: 1280,
+        maxHeight: 1280,
+      );
+
+      if (photo == null || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _selectedPhoto = photo;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The photo could not be selected. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  void removePhoto() {
+    if (_isSubmitting) {
+      return;
+    }
+
+    setState(() {
+      _selectedPhoto = null;
+    });
+  }
+
+  Future<String?> uploadSelectedPhoto() async {
+    final photo = _selectedPhoto;
+
+    if (photo == null) {
+      return null;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'not-signed-in',
+        message: 'You must be signed in to upload a photo.',
+      );
+    }
+
+    final photoPath =
+        'couples/${widget.coupleId}/'
+        'catalogProofs/${user.uid}/'
+        '$_completionId.jpg';
+
+    final photoRef = FirebaseStorage.instance.ref(photoPath);
+
+    await photoRef.putFile(
+      File(photo.path),
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    return photoPath;
+  }
+
   Future<void> completeActivity() async {
     if (_isSubmitting || _completed) {
       return;
@@ -339,10 +454,13 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
     });
 
     try {
+      final photoPath = await uploadSelectedPhoto();
+
       final result = await _catalogTaskService.completeTask(
         coupleId: widget.coupleId,
         taskId: widget.task.id,
         completionId: _completionId,
+        photoPath: photoPath,
       );
 
       if (!mounted) {
@@ -406,6 +524,36 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
           ),
         ),
       );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ?? 'You must be signed in to upload a photo.',
+          ),
+        ),
+      );
+    } on FirebaseException catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The photo could not be uploaded. Please try again.'),
+        ),
+      );
     } catch (_) {
       if (!mounted) {
         return;
@@ -428,6 +576,8 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedPhoto = _selectedPhoto;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Activity Details')),
       body: SafeArea(
@@ -464,11 +614,60 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(repeatDescription, textAlign: TextAlign.center),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Photo support for built-in activities is coming next.',
-                        textAlign: TextAlign.center,
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.photo_camera_outlined),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Optional Photo',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add a photo if you want to share the moment '
+                        'with your partner.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (selectedPhoto != null) ...[
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(
+                            File(selectedPhoto.path),
+                            height: 220,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: _isSubmitting ? null : removePhoto,
+                          icon: const Icon(Icons.delete_outline),
+                          label: const Text('Remove Photo'),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          onPressed: _isSubmitting ? null : choosePhotoSource,
+                          icon: const Icon(Icons.add_a_photo_outlined),
+                          label: const Text('Add Optional Photo'),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -489,7 +688,8 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                       const SizedBox(height: 8),
                       Text(
                         'Relationship XP verifies the activity, reward limit, '
-                        'and XP value before recording the completion.',
+                        'XP value, and optional photo location before '
+                        'recording the completion.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
