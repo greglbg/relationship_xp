@@ -5,6 +5,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../tasks/task_catalog.dart';
+
 class ResubmitClaimScreen extends StatefulWidget {
   const ResubmitClaimScreen({
     required this.coupleId,
@@ -34,10 +36,6 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
 
   final ImagePicker imagePicker = ImagePicker();
 
-  final List<int> xpOptions = [5, 10, 25, 50, 100];
-
-  late int selectedXp;
-
   XFile? selectedImage;
   bool isLoading = false;
   bool isLoadingExistingPhoto = true;
@@ -49,8 +47,6 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     super.initState();
 
     titleController = TextEditingController(text: widget.title);
-
-    selectedXp = widget.xp;
 
     loadExistingPhoto();
   }
@@ -228,7 +224,7 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
     try {
       final updateData = <String, dynamic>{
         'title': title,
-        'xp': selectedXp,
+        'xp': TaskCatalog.customTaskXp,
         'status': 'pending',
         'resubmittedAt': FieldValue.serverTimestamp(),
         'reviewMessage': FieldValue.delete(),
@@ -404,28 +400,26 @@ class _ResubmitClaimScreenState extends State<ResubmitClaimScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Requested XP',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: xpOptions.map((xp) {
-                  return ChoiceChip(
-                    label: Text('$xp XP'),
-                    selected: selectedXp == xp,
-                    onSelected: isLoading
-                        ? null
-                        : (_) {
-                            setState(() {
-                              selectedXp = xp;
-                            });
-                          },
-                  );
-                }).toList(),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.stars_outlined),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${TaskCatalog.customTaskXp} XP',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Custom activity XP is fixed and cannot be changed.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
               ),
               const SizedBox(height: 28),
               Card(
