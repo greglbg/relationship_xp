@@ -1,3 +1,5 @@
+import '../game/game_balance.dart';
+
 enum TaskRepeatPeriod { daily, weekly }
 
 class RelationshipTask {
@@ -43,19 +45,14 @@ class TaskCategory {
 class TaskCatalog {
   TaskCatalog._();
 
-  static const int customTaskXp = 25;
+  /// These aliases let our existing screens continue working while
+  /// GameBalance remains the single source of truth for XP limits.
+  static const int customTaskXp = GameBalance.customTaskXp;
 
-  /// This will eventually be enforced securely by the backend.
-  ///
-  /// The value means one person can earn at most 150 XP from
-  /// built-in catalog tasks in a calendar day.
-  static const int dailyCatalogXpCap = 150;
+  static const int dailyCatalogXpCap = GameBalance.dailyCatalogXpTarget;
 
-  /// Prevents a user from overwhelming their partner with
-  /// custom-task approval requests.
-  ///
-  /// This will eventually be enforced securely by the backend.
-  static const int dailyCustomSubmissionLimit = 5;
+  static const int dailyCustomSubmissionLimit =
+      GameBalance.dailyCustomRewardLimit;
 
   static const List<TaskCategory> categories = [
     TaskCategory(
