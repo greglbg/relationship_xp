@@ -224,7 +224,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       continue;
                     }
 
-                    final xp = data['xp'] as int? ?? 0;
+                    final awardedXp =
+                        (data['awardedXp'] as num?)?.toInt() ??
+                        (data['xp'] as num?)?.toInt() ??
+                        0;
 
                     if (submittedByUserId == null) {
                       continue;
@@ -235,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
 
                     xpByMember[submittedByUserId] =
-                        (xpByMember[submittedByUserId] ?? 0) + xp;
+                        (xpByMember[submittedByUserId] ?? 0) + awardedXp;
                   }
 
                   final yourXp = xpByMember[user.uid] ?? 0;
@@ -352,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             label: Text(
                               pendingReviewCount > 0
-                                  ? 'Pending Reviews ($pendingReviewCount)'
+                                  ? 'Pending Reviews '
+                                        '($pendingReviewCount)'
                                   : 'Pending Reviews',
                             ),
                           ),
@@ -360,8 +364,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 8),
                             Text(
                               pendingReviewCount == 1
-                                  ? '1 activity is waiting for your review.'
-                                  : '$pendingReviewCount activities are waiting for your review.',
+                                  ? '1 activity is waiting '
+                                        'for your review.'
+                                  : '$pendingReviewCount activities '
+                                        'are waiting for your review.',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
@@ -432,7 +438,8 @@ class CoupleSummaryCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your Couple Level is the sum of both partner levels.',
+              'Your Couple Level is the sum of '
+              'both partner levels.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
@@ -553,7 +560,7 @@ class ActivityUpdatesCard extends StatelessWidget {
           coupleId: coupleId,
           claimId: claim.id,
           title: data['title'] as String? ?? '',
-          xp: data['xp'] as int? ?? 25,
+          xp: (data['xp'] as num?)?.toInt() ?? 25,
           photoPath: data['photoPath'] as String? ?? '',
           photoUrl: data['photoUrl'] as String? ?? '',
           reviewMessage:
@@ -637,7 +644,15 @@ class ActivityUpdatesCard extends StatelessWidget {
 
         final title = data['title'] as String? ?? 'Activity';
 
-        final xp = data['xp'] as int? ?? 0;
+        final baseXp =
+            (data['baseXp'] as num?)?.toInt() ??
+            (data['xp'] as num?)?.toInt() ??
+            0;
+
+        final awardedXp =
+            (data['awardedXp'] as num?)?.toInt() ??
+            (data['xp'] as num?)?.toInt() ??
+            0;
 
         final status = data['status'] as String?;
 
@@ -678,12 +693,23 @@ class ActivityUpdatesCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 if (approved)
-                  Text(
-                    'Your partner approved this activity. '
-                    'You earned $xp XP!',
-                  )
+                  if (awardedXp > 0)
+                    Text(
+                      'Your partner approved this activity. '
+                      'You earned $awardedXp XP!',
+                    )
+                  else
+                    Text(
+                      'Your partner approved this activity. '
+                      'You have already earned today\'s '
+                      'custom activity XP rewards, so '
+                      'this approval adds 0 XP.',
+                    )
                 else ...[
-                  const Text('Your partner left some constructive feedback:'),
+                  const Text(
+                    'Your partner left some '
+                    'constructive feedback:',
+                  ),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -696,13 +722,15 @@ class ActivityUpdatesCard extends StatelessWidget {
                     child: Text(
                       reviewMessage?.trim().isNotEmpty == true
                           ? reviewMessage!
-                          : 'Your partner requested an update.',
+                          : 'Your partner requested '
+                                'an update.',
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'There is no penalty. Make the requested update '
-                    'and send the activity back for another review.',
+                    'There is no penalty. Make the '
+                    'requested update and send the '
+                    'activity back for another review.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),
@@ -712,6 +740,14 @@ class ActivityUpdatesCard extends StatelessWidget {
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text('Update & Resubmit'),
+                  ),
+                ],
+                if (approved && awardedXp == 0 && baseXp > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Normal activity value: '
+                    '$baseXp XP',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ],

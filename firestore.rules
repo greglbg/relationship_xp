@@ -95,52 +95,37 @@ service cloud.firestore {
 
         allow update: if isCoupleMember(coupleId)
                       && (
-                        isPartnerReview()
+                        isPartnerChangeRequest()
                         || isClaimResubmission()
                       );
 
         allow delete: if false;
 
-        function isPartnerReview() {
-          return request.auth.uid != resource.data.submittedByUserId
+        function isPartnerChangeRequest() {
+          return request.auth.uid
+                    != resource.data.submittedByUserId
                  && resource.data.status == 'pending'
                  && request.resource.data.submittedByUserId
                     == resource.data.submittedByUserId
+                 && request.resource.data.status
+                    == 'changes_requested'
+                 && request.resource.data.reviewMessage
+                    is string
+                 && request.resource.data.reviewMessage.size()
+                    > 0
+                 && request.resource.data.reviewMessage.size()
+                    <= 300
                  && request.resource.data.reviewedByUserId
                     == request.auth.uid
-                 && (
-                   (
-                     request.resource.data.status == 'approved'
-                     && request.resource.data
-                         .diff(resource.data)
-                         .affectedKeys()
-                         .hasOnly([
-                           'status',
-                           'reviewedByUserId',
-                           'reviewedAt'
-                         ])
-                   )
-                   ||
-                   (
-                     request.resource.data.status
-                        == 'changes_requested'
-                     && request.resource.data.reviewMessage
-                        is string
-                     && request.resource.data.reviewMessage.size()
-                        > 0
-                     && request.resource.data.reviewMessage.size()
-                        <= 300
-                     && request.resource.data
-                         .diff(resource.data)
-                         .affectedKeys()
-                         .hasOnly([
-                           'status',
-                           'reviewMessage',
-                           'reviewedByUserId',
-                           'reviewedAt'
-                         ])
-                   )
-                 );
+                 && request.resource.data
+                     .diff(resource.data)
+                     .affectedKeys()
+                     .hasOnly([
+                       'status',
+                       'reviewMessage',
+                       'reviewedByUserId',
+                       'reviewedAt'
+                     ]);
         }
 
         function isClaimResubmission() {
@@ -185,6 +170,10 @@ service cloud.firestore {
       }
 
       match /catalogTaskPeriods/{counterId} {
+        allow read, write: if false;
+      }
+
+      match /customRewardDays/{dayId} {
         allow read, write: if false;
       }
     }

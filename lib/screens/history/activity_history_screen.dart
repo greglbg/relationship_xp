@@ -96,7 +96,8 @@ class ActivityHistoryScreen extends StatelessWidget {
                     padding: EdgeInsets.all(24),
                     child: Text(
                       'No activities yet.\n\n'
-                      'Your shared accomplishments will appear here.',
+                      'Your shared accomplishments '
+                      'will appear here.',
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -125,9 +126,20 @@ class ActivityHistoryScreen extends StatelessWidget {
                       ? rawPhotoPath!.trim()
                       : null;
 
+                  final baseXp =
+                      (data['baseXp'] as num?)?.toInt() ??
+                      (data['xp'] as num?)?.toInt() ??
+                      0;
+
+                  final awardedXp =
+                      (data['awardedXp'] as num?)?.toInt() ??
+                      (data['xp'] as num?)?.toInt() ??
+                      0;
+
                   return ActivityHistoryCard(
                     title: data['title'] as String? ?? 'Untitled activity',
-                    xp: data['xp'] as int? ?? 0,
+                    baseXp: baseXp,
+                    awardedXp: awardedXp,
                     status: data['status'] as String? ?? 'pending',
                     submittedByName: submittedByName,
                     isCurrentUser: isCurrentUser,
@@ -148,7 +160,8 @@ class ActivityHistoryScreen extends StatelessWidget {
 class ActivityHistoryCard extends StatelessWidget {
   const ActivityHistoryCard({
     required this.title,
-    required this.xp,
+    required this.baseXp,
+    required this.awardedXp,
     required this.status,
     required this.submittedByName,
     required this.isCurrentUser,
@@ -159,7 +172,8 @@ class ActivityHistoryCard extends StatelessWidget {
   });
 
   final String title;
-  final int xp;
+  final int baseXp;
+  final int awardedXp;
   final String status;
   final String submittedByName;
   final bool isCurrentUser;
@@ -195,10 +209,14 @@ class ActivityHistoryCard extends StatelessWidget {
 
   String get xpLabel {
     if (status == 'approved') {
-      return '+$xp XP earned';
+      if (awardedXp > 0) {
+        return '+$awardedXp XP earned';
+      }
+
+      return 'Approved · 0 XP awarded';
     }
 
-    return '$xp XP requested';
+    return '$baseXp XP requested';
   }
 
   String formattedDate() {
@@ -259,7 +277,8 @@ class ActivityHistoryCard extends StatelessWidget {
                           Icon(Icons.broken_image_outlined, size: 48),
                           SizedBox(height: 12),
                           Text(
-                            'This photo is no longer available.',
+                            'This photo is no '
+                            'longer available.',
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -317,6 +336,13 @@ class ActivityHistoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(xpLabel, style: Theme.of(context).textTheme.bodyMedium),
+            if (status == 'approved' && awardedXp == 0 && baseXp > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Normal activity value: $baseXp XP',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 6),
             Text(
               isCurrentUser

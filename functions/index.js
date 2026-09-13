@@ -19,6 +19,9 @@ initializeApp();
 
 const db = getFirestore();
 
+const CUSTOM_TASK_XP = 25;
+const DAILY_CUSTOM_REWARD_LIMIT = 3;
+
 /**
  * Requires the callable request to come from a signed-in user.
  *
@@ -258,6 +261,20 @@ function dailyLedgerId(
 }
 
 /**
+ * Creates a Firestore document ID for a custom reward ledger.
+ *
+ * @param {string} userId Claim owner's Firebase Authentication user ID.
+ * @param {string} dayKey UTC date key.
+ * @return {string} Custom reward ledger document ID.
+ */
+function customRewardLedgerId(
+    userId,
+    dayKey,
+) {
+  return `${userId}_${dayKey}`;
+}
+
+/**
  * Confirms that a user belongs to the requested couple.
  *
  * @param {Object} coupleSnapshot Firestore couple snapshot.
@@ -286,6 +303,42 @@ function requireCoupleMembership(
     throw new HttpsError(
         "permission-denied",
         "You are not a member of this couple.",
+    );
+  }
+}
+
+/**
+ * Confirms that both the reviewer and claimant belong to the couple.
+ *
+ * @param {Object} coupleSnapshot Firestore couple snapshot.
+ * @param {string} reviewerId Reviewing user's Firebase Authentication ID.
+ * @param {string} claimantId Claim owner's Firebase Authentication ID.
+ * @return {void}
+ */
+function requireCustomReviewMembership(
+    coupleSnapshot,
+    reviewerId,
+    claimantId,
+) {
+  requireCoupleMembership(
+      coupleSnapshot,
+      reviewerId,
+  );
+
+  const coupleData = coupleSnapshot.data();
+  const memberIds = coupleData.memberIds;
+
+  if (!memberIds.includes(claimantId)) {
+    throw new HttpsError(
+        "failed-precondition",
+        "The activity owner is not a member of this couple.",
+    );
+  }
+
+  if (reviewerId === claimantId) {
+    throw new HttpsError(
+        "permission-denied",
+        "You cannot approve your own custom activity.",
     );
   }
 }
@@ -320,6 +373,32 @@ function readNonNegativeNumber(
   }
 
   return value;
+}
+
+/**
+ * Reads the awarded XP value from a stored claim.
+ *
+ * Older claims may only contain the xp field.
+ *
+ * @param {Object} claim Stored claim data.
+ * @return {number} Awarded XP value.
+ */
+function awardedXpForClaim(claim) {
+  if (
+    typeof claim.awardedXp === "number" &&
+    claim.awardedXp >= 0
+  ) {
+    return claim.awardedXp;
+  }
+
+  if (
+    typeof claim.xp === "number" &&
+    claim.xp >= 0
+  ) {
+    return claim.xp;
+  }
+
+  return 0;
 }
 
 exports.validateCatalogTask =
@@ -478,7 +557,9 @@ exports.completeCatalogTask =
                   taskName:
                     existingClaim.title,
                   xpAwarded:
-                    existingClaim.xp,
+                    awardedXpForClaim(
+                        existingClaim,
+                    ),
                   dailyCatalogXpTarget:
                     DAILY_CATALOG_XP_TARGET,
                 };
@@ -628,6 +709,208 @@ exports.completeCatalogTask =
                 newDailyXp,
               dailyCatalogXpTarget:
                 DAILY_CATALOG_XP_TARGET,
+            };
+          },
+      );
+
+    return result;
+  });
+
+exports.approveCustomClaim =
+  onCall(async (request) => {
+    const reviewerId =
+      requireSignedInUser(request);
+
+    const data =
+      getRequestData(request);
+
+    const coupleId = requireString(
+        data.coupleId,
+        "A valid couple ID is required.",
+    );
+
+    const claimId = requireString(
+        data.claimId,
+        "A valid claim ID is required.",
+    );
+
+    const now = new Date();
+    const dayKey = utcDateKey(now);
+
+    const coupleRef =
+      db.collection("couples").doc(coupleId);
+
+    const claimRef =
+      coupleRef
+          .collection("claims")
+          .doc(claimId);
+
+    const result =
+      await db.runTransaction(
+          async (transaction) => {
+            const coupleSnapshot =
+              await transaction.get(
+                  coupleRef,
+              );
+
+            const claimSnapshot =
+              await transaction.get(
+                  claimRef,
+              );
+
+            if (!claimSnapshot.exists) {
+              throw new HttpsError(
+                  "not-found",
+                  "The custom activity could not be found.",
+              );
+            }
+
+            const claim =
+              claimSnapshot.data();
+
+            const claimantId =
+              claim.submittedByUserId;
+
+            if (
+              typeof claimantId !== "string" ||
+              claimantId.length === 0
+            ) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "The custom activity owner is invalid.",
+              );
+            }
+
+            requireCustomReviewMembership(
+                coupleSnapshot,
+                reviewerId,
+                claimantId,
+            );
+
+            if (claim.status === "approved") {
+              return {
+                alreadyApproved: true,
+                claimId: claimId,
+                xpAwarded:
+                  awardedXpForClaim(
+                      claim,
+                  ),
+                rewardedCustomActivitiesToday:
+                  null,
+                dailyCustomRewardLimit:
+                  DAILY_CUSTOM_REWARD_LIMIT,
+              };
+            }
+
+            if (claim.status !== "pending") {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "This activity is not waiting for approval.",
+              );
+            }
+
+            if (
+              claim.source !== undefined &&
+              claim.source !== "custom"
+            ) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "Only custom activities require partner approval.",
+              );
+            }
+
+            if (claim.xp !== CUSTOM_TASK_XP) {
+              throw new HttpsError(
+                  "failed-precondition",
+                  "The custom activity XP value is invalid.",
+              );
+            }
+
+            const customLedgerRef =
+              coupleRef
+                  .collection("customRewardDays")
+                  .doc(
+                      customRewardLedgerId(
+                          claimantId,
+                          dayKey,
+                      ),
+                  );
+
+            const customLedgerSnapshot =
+              await transaction.get(
+                  customLedgerRef,
+              );
+
+            const rewardedCount =
+              readNonNegativeNumber(
+                  customLedgerSnapshot,
+                  "rewardedCount",
+                  "The daily custom reward record is invalid.",
+              );
+
+            const rewardAvailable =
+              rewardedCount <
+              DAILY_CUSTOM_REWARD_LIMIT;
+
+            const awardedXp =
+              rewardAvailable ?
+                CUSTOM_TASK_XP :
+                0;
+
+            const newRewardedCount =
+              rewardAvailable ?
+                rewardedCount + 1 :
+                rewardedCount;
+
+            if (rewardAvailable) {
+              transaction.set(
+                  customLedgerRef,
+                  {
+                    userId: claimantId,
+                    dayKey: dayKey,
+                    rewardedCount:
+                      newRewardedCount,
+                    xpAwarded:
+                      newRewardedCount *
+                      CUSTOM_TASK_XP,
+                    updatedAt:
+                      FieldValue
+                          .serverTimestamp(),
+                  },
+                  {
+                    merge: true,
+                  },
+              );
+            }
+
+            transaction.update(
+                claimRef,
+                {
+                  status: "approved",
+                  source: "custom",
+                  baseXp:
+                    CUSTOM_TASK_XP,
+                  awardedXp: awardedXp,
+                  approvalDayKey:
+                    dayKey,
+                  reviewedByUserId:
+                    reviewerId,
+                  reviewedAt:
+                    FieldValue
+                        .serverTimestamp(),
+                },
+            );
+
+            return {
+              alreadyApproved: false,
+              claimId: claimId,
+              xpAwarded: awardedXp,
+              rewardAvailable:
+                rewardAvailable,
+              rewardedCustomActivitiesToday:
+                newRewardedCount,
+              dailyCustomRewardLimit:
+                DAILY_CUSTOM_REWARD_LIMIT,
             };
           },
       );

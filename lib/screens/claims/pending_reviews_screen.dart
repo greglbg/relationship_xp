@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -19,26 +20,75 @@ class PendingReviewsScreen extends StatelessWidget {
     }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('couples')
-          .doc(coupleId)
-          .collection('claims')
-          .doc(claimId)
-          .update({
-            'status': 'approved',
-            'reviewedByUserId': user.uid,
-            'reviewedAt': FieldValue.serverTimestamp(),
-          });
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'approveCustomClaim',
+      );
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Activity approved.')));
+      final response = await callable.call<Map<String, dynamic>>({
+        'coupleId': coupleId,
+        'claimId': claimId,
+      });
+
+      final data = response.data;
+
+      final xpAwarded = (data['xpAwarded'] as num?)?.toInt() ?? 0;
+
+      final alreadyApproved = data['alreadyApproved'] == true;
+
+      if (!context.mounted) {
+        return;
       }
-    } on FirebaseException catch (error) {
-      if (context.mounted) {
+
+      if (alreadyApproved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This activity was already approved.')),
+        );
+
+        return;
+      }
+
+      if (xpAwarded > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(error.message ?? 'Unable to approve this activity.'),
+            content: Text(
+              'Activity approved. '
+              '$xpAwarded XP awarded.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Activity approved. '
+              'Today\'s custom activity XP rewards '
+              'have already been earned.',
+            ),
+          ),
+        );
+      }
+    } on FirebaseFunctionsException catch (error) {
+      if (context.mounted) {
+        final message = error.message?.trim();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message == null || message.isEmpty
+                  ? 'Unable to approve this activity.'
+                  : message,
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Something went wrong while '
+              'approving this activity.',
+            ),
           ),
         );
       }
@@ -145,7 +195,9 @@ class PendingReviewsScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: claims.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 16),
+            separatorBuilder: (_, _) {
+              return const SizedBox(height: 16);
+            },
             itemBuilder: (context, index) {
               final claim = claims[index];
               final data = claim.data();
