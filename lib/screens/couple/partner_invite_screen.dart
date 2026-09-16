@@ -13,6 +13,7 @@ class PartnerInviteScreen extends StatefulWidget {
 
 class _PartnerInviteScreenState extends State<PartnerInviteScreen> {
   bool isLoading = false;
+  bool isCancelling = false;
   String? errorMessage;
 
   Future<void> generateInviteCode() async {
@@ -64,18 +65,129 @@ class _PartnerInviteScreenState extends State<PartnerInviteScreen> {
     }
   }
 
+  Future<void> cancelCoupleSetup() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      setState(() {
+        errorMessage = 'No signed-in user was found.';
+      });
+      return;
+    }
+
+    final shouldCancel = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Cancel couple setup?'),
+          content: const Text(
+            'This will cancel this unfinished couple setup so you can '
+            'create a different couple or join your partner instead.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: const Text('Stay Here'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: const Text('Cancel Setup'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldCancel != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      isCancelling = true;
+      errorMessage = null;
+    });
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+
+      final coupleReference = firestore
+          .collection('couples')
+          .doc(widget.coupleId);
+
+      final userReference = firestore.collection('users').doc(user.uid);
+
+      final coupleSnapshot = await coupleReference.get();
+
+      if (!coupleSnapshot.exists) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          message: 'This unfinished couple could not be found.',
+        );
+      }
+
+      final coupleData = coupleSnapshot.data();
+      final memberIds = List<String>.from(
+        coupleData?['memberIds'] ?? <String>[],
+      );
+
+      if (memberIds.length != 1 || memberIds.first != user.uid) {
+        throw FirebaseException(
+          plugin: 'cloud_firestore',
+          message:
+              'This couple setup can no longer be cancelled from this screen.',
+        );
+      }
+
+      final batch = firestore.batch();
+
+      batch.delete(coupleReference);
+
+      batch.update(userReference, {'coupleId': FieldValue.delete()});
+
+      await batch.commit();
+
+      // No Navigator.pop() is needed here.
+      //
+      // AuthGate listens to the user's Firestore profile. Once coupleId is
+      // removed, AuthGate automatically displays CoupleSetupScreen.
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        setState(() {
+          errorMessage = error.message;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isCancelling = false;
+        });
+      }
+    }
+  }
+
   Future<void> signOut() async {
     await FirebaseAuth.instance.signOut();
   }
 
   @override
   Widget build(BuildContext context) {
+    final controlsDisabled = isLoading || isCancelling;
+
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: controlsDisabled ? null : cancelCoupleSetup,
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Cancel couple setup',
+        ),
         title: const Text('Invite Your Partner'),
         actions: [
           IconButton(
-            onPressed: signOut,
+            onPressed: controlsDisabled ? null : signOut,
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
           ),
@@ -101,7 +213,7 @@ class _PartnerInviteScreenState extends State<PartnerInviteScreen> {
             final data = snapshot.data?.data();
 
             if (data == null) {
-              return const Center(child: Text('Couple information not found.'));
+              return const Center(child: CircularProgressIndicator());
             }
 
             final inviteCode = data['inviteCode'] as String?;
@@ -163,7 +275,17 @@ class _PartnerInviteScreenState extends State<PartnerInviteScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  if (inviteCode == null)
+                  if (isCancelling)
+                    const Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text('Cancelling couple setup...'),
+                        ],
+                      ),
+                    )
+                  else if (inviteCode == null)
                     FilledButton.icon(
                       onPressed: isLoading ? null : generateInviteCode,
                       icon: const Icon(Icons.key),

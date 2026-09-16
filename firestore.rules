@@ -16,9 +16,10 @@ service cloud.firestore {
       allow read: if isExistingCoupleMember();
 
       allow update: if isCoupleJoin()
-                    || isMemberNameUpdate();
+                    || isMemberNameUpdate()
+                    || isInviteCodeUpdate();
 
-      allow delete: if false;
+      allow delete: if isUnfinishedCoupleDeletion();
 
       function isExistingCoupleMember() {
         return request.auth != null
@@ -51,6 +52,9 @@ service cloud.firestore {
                    .hasOnly([
                      'memberNames'
                    ])
+               && request.resource.data.keys().hasAll([
+                    'memberNames'
+                  ])
                && request.resource.data.memberNames is map
                && request.resource.data.memberNames
                    .diff(resource.data.get('memberNames', {}))
@@ -67,6 +71,39 @@ service cloud.firestore {
                && request.resource.data.memberNames[
                     request.auth.uid
                   ].size() <= 50;
+      }
+
+      function isInviteCodeUpdate() {
+        return request.auth != null
+               && request.auth.uid in resource.data.memberIds
+               && request.resource.data
+                   .diff(resource.data)
+                   .affectedKeys()
+                   .hasOnly([
+                     'inviteCode'
+                   ])
+               && request.resource.data.keys().hasAll([
+                    'inviteCode'
+                  ])
+               && request.resource.data.inviteCode is string
+               && request.resource.data.inviteCode.size() > 0
+               && request.resource.data.inviteCode.size() <= 100
+               && existsAfter(
+                 /databases/$(database)/documents/coupleInvites/$(request.resource.data.inviteCode)
+               )
+               && getAfter(
+                 /databases/$(database)/documents/coupleInvites/$(request.resource.data.inviteCode)
+               ).data.coupleId == coupleId
+               && getAfter(
+                 /databases/$(database)/documents/coupleInvites/$(request.resource.data.inviteCode)
+               ).data.createdBy == request.auth.uid;
+      }
+
+      function isUnfinishedCoupleDeletion() {
+        return request.auth != null
+               && resource.data.memberIds is list
+               && resource.data.memberIds.size() == 1
+               && resource.data.memberIds[0] == request.auth.uid;
       }
 
       match /claims/{claimId} {
@@ -175,6 +212,12 @@ service cloud.firestore {
 
       match /customRewardDays/{dayId} {
         allow read, write: if false;
+      }
+
+      match /memberProgress/{userId} {
+        allow read: if isCoupleMember(coupleId);
+
+        allow create, update, delete: if false;
       }
     }
 

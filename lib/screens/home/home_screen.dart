@@ -8,6 +8,11 @@ import '../claims/resubmit_claim_screen.dart';
 import '../claims/submit_claim_screen.dart';
 import '../history/activity_history_screen.dart';
 
+// Keep these values aligned with the secure Cloud Functions XP cap.
+const int individualLevelCap = 50;
+const int individualXpCap = 122500;
+const String individualXpCapReason = 'individual_level_cap';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -77,6 +82,31 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) => ActivityHistoryScreen(coupleId: coupleId),
       ),
     );
+  }
+
+  int readMemberXp(
+    QuerySnapshot<Map<String, dynamic>>? progressSnapshot,
+    String memberId,
+  ) {
+    if (progressSnapshot == null) {
+      return 0;
+    }
+
+    for (final document in progressSnapshot.docs) {
+      if (document.id != memberId) {
+        continue;
+      }
+
+      final totalXp = document.data()['totalXp'];
+
+      if (totalXp is num && totalXp >= 0) {
+        return totalXp.toInt();
+      }
+
+      return 0;
+    }
+
+    return 0;
   }
 
   @override
@@ -180,215 +210,229 @@ class _HomeScreenState extends State<HomeScreen> {
                 });
               }
 
+              String? partnerId;
+
+              for (final memberId in memberIds) {
+                if (memberId != user.uid) {
+                  partnerId = memberId;
+                  break;
+                }
+              }
+
+              final partnerName = partnerId == null
+                  ? 'Partner'
+                  : memberNames[partnerId] ?? 'Partner';
+
               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('couples')
                     .doc(coupleId)
-                    .collection('claims')
+                    .collection('memberProgress')
                     .snapshots(),
-                builder: (context, claimsSnapshot) {
-                  if (claimsSnapshot.connectionState ==
+                builder: (context, progressSnapshot) {
+                  if (progressSnapshot.connectionState ==
                       ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  if (claimsSnapshot.hasError) {
+                  if (progressSnapshot.hasError) {
                     return const Center(
-                      child: Text('Unable to load activity XP.'),
+                      child: Text('Unable to load XP progress.'),
                     );
                   }
 
-                  final claims = claimsSnapshot.data?.docs ?? [];
-
-                  final xpByMember = <String, int>{
-                    for (final memberId in memberIds) memberId: 0,
-                  };
-
-                  var pendingReviewCount = 0;
-
-                  for (final claim in claims) {
-                    final data = claim.data();
-
-                    final submittedByUserId =
-                        data['submittedByUserId'] as String?;
-
-                    final status = data['status'] as String? ?? 'pending';
-
-                    if (status == 'pending' &&
-                        submittedByUserId != null &&
-                        submittedByUserId != user.uid) {
-                      pendingReviewCount++;
-                    }
-
-                    if (status != 'approved') {
-                      continue;
-                    }
-
-                    final awardedXp =
-                        (data['awardedXp'] as num?)?.toInt() ??
-                        (data['xp'] as num?)?.toInt() ??
-                        0;
-
-                    if (submittedByUserId == null) {
-                      continue;
-                    }
-
-                    if (!xpByMember.containsKey(submittedByUserId)) {
-                      continue;
-                    }
-
-                    xpByMember[submittedByUserId] =
-                        (xpByMember[submittedByUserId] ?? 0) + awardedXp;
-                  }
-
-                  final yourXp = xpByMember[user.uid] ?? 0;
-
-                  final yourLevel = XpSystem.levelForXp(yourXp);
-
-                  final yourXpIntoLevel = XpSystem.xpIntoCurrentLevel(yourXp);
-
-                  final yourXpNeeded = XpSystem.xpNeededForNextLevel(yourXp);
-
-                  final yourProgress = XpSystem.levelProgress(yourXp);
-
-                  String? partnerId;
-
-                  for (final memberId in memberIds) {
-                    if (memberId != user.uid) {
-                      partnerId = memberId;
-                      break;
-                    }
-                  }
+                  final yourXp = readMemberXp(progressSnapshot.data, user.uid);
 
                   final partnerXp = partnerId == null
                       ? 0
-                      : xpByMember[partnerId] ?? 0;
+                      : readMemberXp(progressSnapshot.data, partnerId);
+
+                  final yourLevel = XpSystem.levelForXp(yourXp);
+
+                  final yourXpIntoLevel = yourXp >= individualXpCap
+                      ? 0
+                      : XpSystem.xpIntoCurrentLevel(yourXp);
+
+                  final yourXpNeeded = yourXp >= individualXpCap
+                      ? 0
+                      : XpSystem.xpNeededForNextLevel(yourXp);
+
+                  final yourProgress = yourXp >= individualXpCap
+                      ? 1.0
+                      : XpSystem.levelProgress(yourXp);
 
                   final partnerLevel = XpSystem.levelForXp(partnerXp);
 
-                  final partnerXpIntoLevel = XpSystem.xpIntoCurrentLevel(
-                    partnerXp,
-                  );
+                  final partnerXpIntoLevel = partnerXp >= individualXpCap
+                      ? 0
+                      : XpSystem.xpIntoCurrentLevel(partnerXp);
 
-                  final partnerXpNeeded = XpSystem.xpNeededForNextLevel(
-                    partnerXp,
-                  );
+                  final partnerXpNeeded = partnerXp >= individualXpCap
+                      ? 0
+                      : XpSystem.xpNeededForNextLevel(partnerXp);
 
-                  final partnerProgress = XpSystem.levelProgress(partnerXp);
-
-                  final partnerName = partnerId == null
-                      ? 'Partner'
-                      : memberNames[partnerId] ?? 'Partner';
+                  final partnerProgress = partnerXp >= individualXpCap
+                      ? 1.0
+                      : XpSystem.levelProgress(partnerXp);
 
                   var coupleXp = 0;
                   var coupleLevel = 0;
 
                   for (final memberId in memberIds) {
-                    final memberXp = xpByMember[memberId] ?? 0;
+                    final memberXp = readMemberXp(
+                      progressSnapshot.data,
+                      memberId,
+                    );
 
                     coupleXp += memberXp;
                     coupleLevel += XpSystem.levelForXp(memberXp);
                   }
 
-                  return SafeArea(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Welcome, $displayName!',
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                  return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('couples')
+                        .doc(coupleId)
+                        .collection('claims')
+                        .where('status', isEqualTo: 'pending')
+                        .snapshots(),
+                    builder: (context, pendingSnapshot) {
+                      if (pendingSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+
+                      if (pendingSnapshot.hasError) {
+                        return const Center(
+                          child: Text('Unable to load pending reviews.'),
+                        );
+                      }
+
+                      var pendingReviewCount = 0;
+
+                      final pendingClaims = pendingSnapshot.data?.docs ?? [];
+
+                      for (final claim in pendingClaims) {
+                        final data = claim.data();
+
+                        final submittedByUserId =
+                            data['submittedByUserId'] as String?;
+
+                        if (submittedByUserId != null &&
+                            submittedByUserId != user.uid) {
+                          pendingReviewCount++;
+                        }
+                      }
+
+                      return SafeArea(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Welcome, $displayName!',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Celebrate the little things '
+                                'that make your relationship '
+                                'stronger.',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                              const SizedBox(height: 32),
+                              CoupleSummaryCard(
+                                coupleLevel: coupleLevel,
+                                coupleXp: coupleXp,
+                              ),
+                              const SizedBox(height: 16),
+                              PartnerProgressCard(
+                                name: displayName,
+                                label: 'You',
+                                level: yourLevel,
+                                totalXp: yourXp,
+                                xpIntoLevel: yourXpIntoLevel,
+                                xpNeeded: yourXpNeeded,
+                                progress: yourProgress,
+                              ),
+                              const SizedBox(height: 16),
+                              PartnerProgressCard(
+                                name: partnerName,
+                                label: 'Partner',
+                                level: partnerLevel,
+                                totalXp: partnerXp,
+                                xpIntoLevel: partnerXpIntoLevel,
+                                xpNeeded: partnerXpNeeded,
+                                progress: partnerProgress,
+                              ),
+                              const SizedBox(height: 24),
+                              ActivityUpdatesCard(
+                                coupleId: coupleId,
+                                userId: user.uid,
+                              ),
+                              const SizedBox(height: 32),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  openActivityHistoryScreen(context, coupleId);
+                                },
+                                icon: const Icon(Icons.history),
+                                label: const Text('Activity History'),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  openPendingReviewsScreen(context, coupleId);
+                                },
+                                icon: Icon(
+                                  pendingReviewCount > 0
+                                      ? Icons.mark_email_unread_outlined
+                                      : Icons.rate_review_outlined,
+                                ),
+                                label: Text(
+                                  pendingReviewCount > 0
+                                      ? 'Pending Reviews '
+                                            '($pendingReviewCount)'
+                                      : 'Pending Reviews',
+                                ),
+                              ),
+                              if (pendingReviewCount > 0) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  pendingReviewCount == 1
+                                      ? '1 activity is waiting '
+                                            'for your review.'
+                                      : '$pendingReviewCount '
+                                            'activities are '
+                                            'waiting for your '
+                                            'review.',
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                onPressed: () {
+                                  openSubmitClaimScreen(context, coupleId);
+                                },
+                                icon: const Icon(Icons.add_task),
+                                label: const Text('Submit Activity'),
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Approved activities earn XP. '
+                                'Activities that need changes '
+                                'carry no penalty.',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Celebrate the little things that make your '
-                            'relationship stronger.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: 32),
-                          CoupleSummaryCard(
-                            coupleLevel: coupleLevel,
-                            coupleXp: coupleXp,
-                          ),
-                          const SizedBox(height: 16),
-                          PartnerProgressCard(
-                            name: displayName,
-                            label: 'You',
-                            level: yourLevel,
-                            totalXp: yourXp,
-                            xpIntoLevel: yourXpIntoLevel,
-                            xpNeeded: yourXpNeeded,
-                            progress: yourProgress,
-                          ),
-                          const SizedBox(height: 16),
-                          PartnerProgressCard(
-                            name: partnerName,
-                            label: 'Partner',
-                            level: partnerLevel,
-                            totalXp: partnerXp,
-                            xpIntoLevel: partnerXpIntoLevel,
-                            xpNeeded: partnerXpNeeded,
-                            progress: partnerProgress,
-                          ),
-                          const SizedBox(height: 24),
-                          ActivityUpdatesCard(
-                            coupleId: coupleId,
-                            userId: user.uid,
-                          ),
-                          const SizedBox(height: 32),
-                          OutlinedButton.icon(
-                            onPressed: () =>
-                                openActivityHistoryScreen(context, coupleId),
-                            icon: const Icon(Icons.history),
-                            label: const Text('Activity History'),
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: () =>
-                                openPendingReviewsScreen(context, coupleId),
-                            icon: Icon(
-                              pendingReviewCount > 0
-                                  ? Icons.mark_email_unread_outlined
-                                  : Icons.rate_review_outlined,
-                            ),
-                            label: Text(
-                              pendingReviewCount > 0
-                                  ? 'Pending Reviews '
-                                        '($pendingReviewCount)'
-                                  : 'Pending Reviews',
-                            ),
-                          ),
-                          if (pendingReviewCount > 0) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              pendingReviewCount == 1
-                                  ? '1 activity is waiting '
-                                        'for your review.'
-                                  : '$pendingReviewCount activities '
-                                        'are waiting for your review.',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
-                            onPressed: () =>
-                                openSubmitClaimScreen(context, coupleId),
-                            icon: const Icon(Icons.add_task),
-                            label: const Text('Submit Activity'),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Approved activities earn XP. Activities '
-                            'that need changes carry no penalty.',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   );
                 },
               );
@@ -502,7 +546,10 @@ class PartnerProgressCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('Level', style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      totalXp >= individualXpCap ? 'MAX LEVEL' : 'Level',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                     Text(
                       '$level',
                       style: Theme.of(context).textTheme.headlineMedium
@@ -523,7 +570,9 @@ class PartnerProgressCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$xpIntoLevel / $xpNeeded XP to next level',
+              totalXp >= individualXpCap
+                  ? 'Maximum level reached'
+                  : '$xpIntoLevel / $xpNeeded XP to next level',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
@@ -586,6 +635,7 @@ class ActivityUpdatesCard extends StatelessWidget {
           .collection('couples')
           .doc(coupleId)
           .collection('claims')
+          .where('submittedByUserId', isEqualTo: userId)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -604,10 +654,6 @@ class ActivityUpdatesCard extends StatelessWidget {
         final reviewedClaims =
             snapshot.data?.docs.where((doc) {
               final data = doc.data();
-
-              if (data['submittedByUserId'] != userId) {
-                return false;
-              }
 
               final status = data['status'];
 
@@ -640,6 +686,7 @@ class ActivityUpdatesCard extends StatelessWidget {
         }
 
         final latestClaim = reviewedClaims.first;
+
         final data = latestClaim.data();
 
         final title = data['title'] as String? ?? 'Activity';
@@ -659,6 +706,8 @@ class ActivityUpdatesCard extends StatelessWidget {
         final reviewMessage = data['reviewMessage'] as String?;
 
         final approved = status == 'approved';
+
+        final reachedXpCap = data['capReason'] == individualXpCapReason;
 
         return Card(
           child: Padding(
@@ -693,18 +742,21 @@ class ActivityUpdatesCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 if (approved)
-                  if (awardedXp > 0)
-                    Text(
-                      'Your partner approved this activity. '
-                      'You earned $awardedXp XP!',
-                    )
-                  else
-                    Text(
-                      'Your partner approved this activity. '
-                      'You have already earned today\'s '
-                      'custom activity XP rewards, so '
-                      'this approval adds 0 XP.',
-                    )
+                  Text(
+                    reachedXpCap
+                        ? awardedXp > 0
+                              ? 'Your partner approved this activity. '
+                                    'You earned $awardedXp XP and reached '
+                                    'the Level 50 maximum!'
+                              : 'Your partner approved this activity. '
+                                    'You are already at the Level 50 '
+                                    'maximum, so no additional XP was awarded.'
+                        : awardedXp > 0
+                        ? 'Your partner approved this activity. '
+                              'You earned $awardedXp XP!'
+                        : 'Your partner approved this activity. '
+                              'This approval adds 0 XP.',
+                  )
                 else ...[
                   const Text(
                     'Your partner left some '
@@ -730,7 +782,8 @@ class ActivityUpdatesCard extends StatelessWidget {
                   Text(
                     'There is no penalty. Make the '
                     'requested update and send the '
-                    'activity back for another review.',
+                    'activity back for another '
+                    'review.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),

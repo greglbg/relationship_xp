@@ -13,6 +13,7 @@ class CoupleSetupScreen extends StatefulWidget {
 
 class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
   bool isLoading = false;
+  bool isSigningOut = false;
   String? errorMessage;
 
   Future<void> createCouple() async {
@@ -64,6 +65,36 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
     }
   }
 
+  Future<void> goBack() async {
+    if (isLoading || isSigningOut) {
+      return;
+    }
+
+    setState(() {
+      isSigningOut = true;
+      errorMessage = null;
+    });
+
+    try {
+      await FirebaseAuth.instance.signOut();
+
+      // AuthGate listens to Firebase Authentication.
+      // Once sign-out completes, it automatically displays LoginScreen.
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        setState(() {
+          errorMessage = error.message;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          isSigningOut = false;
+        });
+      }
+    }
+  }
+
   void openJoinScreen() {
     Navigator.of(
       context,
@@ -72,8 +103,17 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final controlsDisabled = isLoading || isSigningOut;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Partner Setup')),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: controlsDisabled ? null : goBack,
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back to sign in',
+        ),
+        title: const Text('Partner Setup'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -131,16 +171,20 @@ class _CoupleSetupScreenState extends State<CoupleSetupScreen> {
                 const SizedBox(height: 16),
               ],
               FilledButton.icon(
-                onPressed: isLoading ? null : createCouple,
+                onPressed: controlsDisabled ? null : createCouple,
                 icon: const Icon(Icons.add),
                 label: Text(isLoading ? 'Creating...' : 'Create a Couple'),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: isLoading ? null : openJoinScreen,
+                onPressed: controlsDisabled ? null : openJoinScreen,
                 icon: const Icon(Icons.group_add),
                 label: const Text('Join Your Partner'),
               ),
+              if (isSigningOut) ...[
+                const SizedBox(height: 24),
+                const Center(child: CircularProgressIndicator()),
+              ],
               const Spacer(),
               Text(
                 'Already have an invite? Join your partner using their code.',

@@ -22,6 +22,13 @@ const db = getFirestore();
 const CUSTOM_TASK_XP = 25;
 const DAILY_CUSTOM_REWARD_LIMIT = 3;
 
+const INDIVIDUAL_LEVEL_CAP = 50;
+const INDIVIDUAL_XP_CAP = 122500;
+
+const MEMBER_PROGRESS_SCHEMA_VERSION = 1;
+
+const XP_CAP_REASON = "individual_level_cap";
+
 /**
  * Requires the callable request to come from a signed-in user.
  *
@@ -401,6 +408,104 @@ function awardedXpForClaim(claim) {
   return 0;
 }
 
+/**
+ * Reads the authoritative XP total from a member progress document.
+ *
+ * A missing progress document is treated as zero for new users.
+ *
+ * @param {Object} snapshot Firestore member progress snapshot.
+ * @return {number} Current authoritative XP total.
+ */
+function memberProgressXp(snapshot) {
+  if (!snapshot.exists) {
+    return 0;
+  }
+
+  const totalXp = snapshot.data().totalXp;
+
+  if (
+    typeof totalXp !== "number" ||
+    totalXp < 0
+  ) {
+    throw new HttpsError(
+        "internal",
+        "The member XP progress record is invalid.",
+    );
+  }
+
+  return totalXp;
+}
+
+/**
+ * Calculates the XP that may actually be awarded before the
+ * individual XP cap is reached.
+ *
+ * @param {number} currentXp Current authoritative XP total.
+ * @param {number} baseXp Normal XP value of the activity.
+ * @return {number} Actual XP that may be awarded.
+ */
+function cappedXpAward(
+    currentXp,
+    baseXp,
+) {
+  const normalizedCurrentXp =
+    Math.min(
+        currentXp,
+        INDIVIDUAL_XP_CAP,
+    );
+
+  const remainingXp =
+    INDIVIDUAL_XP_CAP -
+    normalizedCurrentXp;
+
+  return Math.min(
+      baseXp,
+      remainingXp,
+  );
+}
+
+/**
+ * Returns the authoritative XP total after applying an award.
+ *
+ * @param {number} currentXp Current authoritative XP total.
+ * @param {number} awardedXp Actual XP being awarded.
+ * @return {number} New authoritative XP total.
+ */
+function updatedMemberXp(
+    currentXp,
+    awardedXp,
+) {
+  return Math.min(
+      currentXp + awardedXp,
+      INDIVIDUAL_XP_CAP,
+  );
+}
+
+/**
+ * Creates the standard member progress data written by reward functions.
+ *
+ * @param {string} userId Firebase Authentication user ID.
+ * @param {number} totalXp New authoritative XP total.
+ * @return {Object} Firestore member progress data.
+ */
+function memberProgressData(
+    userId,
+    totalXp,
+) {
+  return {
+    userId: userId,
+    totalXp: totalXp,
+    schemaVersion:
+      MEMBER_PROGRESS_SCHEMA_VERSION,
+    individualLevelCap:
+      INDIVIDUAL_LEVEL_CAP,
+    individualXpCap:
+      INDIVIDUAL_XP_CAP,
+    updatedAt:
+      FieldValue.serverTimestamp(),
+  };
+}
+
 exports.validateCatalogTask =
   onCall(async (request) => {
     const userId =
@@ -443,6 +548,10 @@ exports.validateCatalogTask =
       },
       dailyCatalogXpTarget:
         DAILY_CATALOG_XP_TARGET,
+      individualLevelCap:
+        INDIVIDUAL_LEVEL_CAP,
+      individualXpCap:
+        INDIVIDUAL_XP_CAP,
     };
   });
 
@@ -516,6 +625,11 @@ exports.completeCatalogTask =
               ),
           );
 
+    const progressRef =
+      coupleRef
+          .collection("memberProgress")
+          .doc(userId);
+
     const result =
       await db.runTransaction(
           async (transaction) => {
@@ -582,6 +696,11 @@ exports.completeCatalogTask =
                   taskCounterRef,
               );
 
+            const progressSnapshot =
+              await transaction.get(
+                  progressRef,
+              );
+
             const catalogXpEarnedToday =
               readNonNegativeNumber(
                   dailyLedgerSnapshot,
@@ -630,6 +749,26 @@ exports.completeCatalogTask =
               );
             }
 
+            const currentXp =
+              memberProgressXp(
+                  progressSnapshot,
+              );
+
+            const awardedXp =
+              cappedXpAward(
+                  currentXp,
+                  task.xp,
+              );
+
+            const newTotalXp =
+              updatedMemberXp(
+                  currentXp,
+                  awardedXp,
+              );
+
+            const cappedByLevel =
+              awardedXp < task.xp;
+
             const newDailyXp =
               catalogXpEarnedToday +
               task.xp;
@@ -668,11 +807,22 @@ exports.completeCatalogTask =
                 },
             );
 
+            transaction.set(
+                progressRef,
+                memberProgressData(
+                    userId,
+                    newTotalXp,
+                ),
+                {
+                  merge: true,
+                },
+            );
+
             const claimData = {
               title: task.name,
               xp: task.xp,
               baseXp: task.xp,
-              awardedXp: task.xp,
+              awardedXp: awardedXp,
               submittedByUserId:
                 userId,
               status: "approved",
@@ -689,6 +839,11 @@ exports.completeCatalogTask =
                     .serverTimestamp(),
             };
 
+            if (cappedByLevel) {
+              claimData.capReason =
+                XP_CAP_REASON;
+            }
+
             if (photoPath !== null) {
               claimData.photoPath =
                 photoPath;
@@ -704,11 +859,24 @@ exports.completeCatalogTask =
               claimId: completionId,
               taskId: taskId,
               taskName: task.name,
-              xpAwarded: task.xp,
+              baseXp: task.xp,
+              xpAwarded: awardedXp,
+              totalXp: newTotalXp,
+              levelCapReached:
+                newTotalXp >=
+                INDIVIDUAL_XP_CAP,
+              capReason:
+                cappedByLevel ?
+                  XP_CAP_REASON :
+                  null,
               catalogXpEarnedToday:
                 newDailyXp,
               dailyCatalogXpTarget:
                 DAILY_CATALOG_XP_TARGET,
+              individualLevelCap:
+                INDIVIDUAL_LEVEL_CAP,
+              individualXpCap:
+                INDIVIDUAL_XP_CAP,
             };
           },
       );
@@ -836,9 +1004,19 @@ exports.approveCustomClaim =
                       ),
                   );
 
+            const progressRef =
+              coupleRef
+                  .collection("memberProgress")
+                  .doc(claimantId);
+
             const customLedgerSnapshot =
               await transaction.get(
                   customLedgerRef,
+              );
+
+            const progressSnapshot =
+              await transaction.get(
+                  progressRef,
               );
 
             const rewardedCount =
@@ -852,10 +1030,31 @@ exports.approveCustomClaim =
               rewardedCount <
               DAILY_CUSTOM_REWARD_LIMIT;
 
-            const awardedXp =
+            const currentXp =
+              memberProgressXp(
+                  progressSnapshot,
+              );
+
+            const normalAward =
               rewardAvailable ?
                 CUSTOM_TASK_XP :
                 0;
+
+            const awardedXp =
+              cappedXpAward(
+                  currentXp,
+                  normalAward,
+              );
+
+            const newTotalXp =
+              updatedMemberXp(
+                  currentXp,
+                  awardedXp,
+              );
+
+            const cappedByLevel =
+              normalAward > 0 &&
+              awardedXp < normalAward;
 
             const newRewardedCount =
               rewardAvailable ?
@@ -883,34 +1082,66 @@ exports.approveCustomClaim =
               );
             }
 
+            transaction.set(
+                progressRef,
+                memberProgressData(
+                    claimantId,
+                    newTotalXp,
+                ),
+                {
+                  merge: true,
+                },
+            );
+
+            const claimUpdate = {
+              status: "approved",
+              source: "custom",
+              baseXp:
+                CUSTOM_TASK_XP,
+              awardedXp: awardedXp,
+              approvalDayKey:
+                dayKey,
+              reviewedByUserId:
+                reviewerId,
+              reviewedAt:
+                FieldValue
+                    .serverTimestamp(),
+            };
+
+            if (cappedByLevel) {
+              claimUpdate.capReason =
+                XP_CAP_REASON;
+            }
+
             transaction.update(
                 claimRef,
-                {
-                  status: "approved",
-                  source: "custom",
-                  baseXp:
-                    CUSTOM_TASK_XP,
-                  awardedXp: awardedXp,
-                  approvalDayKey:
-                    dayKey,
-                  reviewedByUserId:
-                    reviewerId,
-                  reviewedAt:
-                    FieldValue
-                        .serverTimestamp(),
-                },
+                claimUpdate,
             );
 
             return {
               alreadyApproved: false,
               claimId: claimId,
+              baseXp:
+                CUSTOM_TASK_XP,
               xpAwarded: awardedXp,
+              totalXp: newTotalXp,
               rewardAvailable:
                 rewardAvailable,
               rewardedCustomActivitiesToday:
                 newRewardedCount,
               dailyCustomRewardLimit:
                 DAILY_CUSTOM_REWARD_LIMIT,
+              levelCapReached:
+                newTotalXp >=
+                INDIVIDUAL_XP_CAP,
+              capReason:
+                cappedByLevel ?
+                  XP_CAP_REASON :
+                  null,
+              individualLevelCap:
+                INDIVIDUAL_LEVEL_CAP,
+              individualXpCap:
+                INDIVIDUAL_XP_CAP,
             };
           },
       );
