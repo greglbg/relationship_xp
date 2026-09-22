@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../services/catalog_task_service.dart';
 import '../../tasks/task_catalog.dart';
+import '../../tasks/quest_category_names.dart';
 import 'custom_claim_screen.dart';
 
 class SubmitClaimScreen extends StatelessWidget {
@@ -164,7 +165,7 @@ class CategoryCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      category.name,
+                      QuestCategoryNames.forCategory(category),
                       style: Theme.of(context).textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
@@ -221,7 +222,7 @@ class CategoryTaskScreen extends StatelessWidget {
         builder: (context) => CatalogTaskDetailsScreen(
           coupleId: coupleId,
           task: task,
-          categoryName: category.name,
+          categoryName: QuestCategoryNames.forCategory(category),
         ),
       ),
     );
@@ -230,7 +231,7 @@ class CategoryTaskScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(category.name)),
+      appBar: AppBar(title: Text(QuestCategoryNames.forCategory(category))),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: category.tasks.length,
