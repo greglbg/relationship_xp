@@ -55,6 +55,10 @@ class TaskCatalog {
       GameBalance.dailyCustomRewardLimit;
 
   static const List<TaskCategory> categories = [
+    // ============================================================
+    // 1. APPRECIATION
+    // ============================================================
+
     TaskCategory(
       id: 'appreciation',
       name: 'Appreciation',
@@ -108,6 +112,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 2. ACTS OF SERVICE
+    // ============================================================
+
     TaskCategory(
       id: 'acts_of_service',
       name: 'Acts of Service',
@@ -160,6 +169,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 3. QUALITY TIME
+    // ============================================================
+
     TaskCategory(
       id: 'quality_time',
       name: 'Quality Time',
@@ -212,6 +226,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 4. COMMUNICATION
+    // ============================================================
+
     TaskCategory(
       id: 'communication',
       name: 'Communication',
@@ -264,6 +283,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 5. ROMANCE
+    // ============================================================
+
     TaskCategory(
       id: 'romance',
       name: 'Romance',
@@ -316,6 +340,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 6. PERSONAL SUPPORT
+    // ============================================================
+
     TaskCategory(
       id: 'support',
       name: 'Personal Support',
@@ -368,6 +397,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 7. HOUSEHOLD
+    // ============================================================
+
     TaskCategory(
       id: 'household',
       name: 'Household',
@@ -414,6 +448,11 @@ class TaskCatalog {
         ),
       ],
     ),
+
+    // ============================================================
+    // 8. SHARED GOALS
+    // ============================================================
+
     TaskCategory(
       id: 'shared_goals',
       name: 'Shared Goals',
@@ -461,6 +500,189 @@ class TaskCatalog {
               'Celebrate completing a significant goal you have worked on '
               'together.',
           xp: 100,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 1,
+        ),
+      ],
+    ),
+
+    // ============================================================
+    // 9. SPIRITUAL
+    // ============================================================
+
+    TaskCategory(
+      id: 'spiritual',
+      name: 'Spiritual',
+      description:
+          'Explore the beliefs, values, traditions, and experiences that '
+          'give your lives meaning. Encourage reflection, respect one '
+          'another\'s perspectives, and find opportunities for personal '
+          'and shared growth.',
+      tasks: [
+        RelationshipTask(
+          id: 'share_personal_meaning',
+          categoryId: 'spiritual',
+          name: 'Share something that gives you meaning',
+          description:
+              'Tell your partner about a belief, value, experience, or '
+              'personal philosophy that brings meaning to your life.',
+          xp: 10,
+          repeatPeriod: TaskRepeatPeriod.daily,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'learn_partner_beliefs',
+          categoryId: 'spiritual',
+          name: 'Learn about your partner\'s beliefs',
+          description:
+              'Ask about a belief, tradition, value, or worldview that '
+              'matters to your partner. Listen with curiosity and respect.',
+          xp: 25,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 2,
+        ),
+        RelationshipTask(
+          id: 'shared_meaningful_practice',
+          categoryId: 'spiritual',
+          name: 'Share a meaningful practice',
+          description:
+              'Participate together in a mutually welcomed activity such '
+              'as prayer, meditation, reflection, a cultural tradition, '
+              'or time in nature.',
+          xp: 50,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'meaningful_experience',
+          categoryId: 'spiritual',
+          name: 'Explore a meaningful experience together',
+          description:
+              'Plan and participate in an experience connected to your '
+              'shared or individual values, such as volunteering, attending '
+              'a community gathering, or visiting a meaningful place.',
+          xp: 100,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'shared_spiritual_study',
+          categoryId: 'spiritual',
+          name: 'Participate in a spiritual study together',
+          description:
+              'Spend time together studying or exploring spiritual, '
+              'religious, or philosophical teachings that interest you '
+              'both. This might include a Bible study, another faith-based '
+              'study, a discussion of sacred texts, or a guided exploration '
+              'of personal beliefs and values.',
+          xp: 50,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 2,
+        ),
+      ],
+    ),
+
+    // ============================================================
+    // 10. INTIMACY
+    // ============================================================
+
+    TaskCategory(
+      id: 'intimacy',
+      name: 'Intimacy',
+      description:
+          'Develop emotional and physical intimacy through open '
+          'communication, affection, mutual trust, and shared experiences. '
+          'Explore closeness, preferences, and boundaries in ways that '
+          'respect both partners\' comfort and autonomy.',
+      tasks: [
+        RelationshipTask(
+          id: 'intimate_appreciation',
+          categoryId: 'intimacy',
+          name: 'Express an intimate appreciation',
+          description:
+              'Tell your partner something you appreciate about your '
+              'emotional connection, attraction, or closeness in a way '
+              'they welcome.',
+          xp: 10,
+          repeatPeriod: TaskRepeatPeriod.daily,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'discuss_intimacy_preferences',
+          categoryId: 'intimacy',
+          name: 'Discuss intimacy and preferences',
+          description:
+              'Have an open, respectful conversation about emotional or '
+              'physical intimacy, including preferences, expectations, '
+              'or boundaries.',
+          xp: 25,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 2,
+        ),
+        RelationshipTask(
+          id: 'intentional_closeness',
+          categoryId: 'intimacy',
+          name: 'Make time for physical or emotional closeness',
+          description:
+              'Spend intentional time connecting in a mutually welcomed '
+              'way, such as cuddling, affectionate touch, or a private '
+              'conversation.',
+          xp: 25,
+          repeatPeriod: TaskRepeatPeriod.daily,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'plan_intimate_experience',
+          categoryId: 'intimacy',
+          name: 'Plan a special intimate experience',
+          description:
+              'Collaboratively plan and enjoy private time focused on '
+              'connection, affection, romance, or intimacy according '
+              'to your mutual preferences.',
+          xp: 50,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'selfless_affection',
+          categoryId: 'intimacy',
+          name: 'Offer a moment of selfless affection',
+          description:
+              'Offer your partner a relaxing massage, comforting touch, '
+              'or another mutually welcomed gesture of physical affection, '
+              'simply to help them feel cared for, without expecting '
+              'anything in return.',
+          xp: 25,
+          repeatPeriod: TaskRepeatPeriod.daily,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'explore_new_intimate_experience',
+          categoryId: 'intimacy',
+          name: 'Explore a new intimate experience together',
+          description:
+              'Discuss and explore a new way of connecting that neither '
+              'of you has experienced together before. This might involve '
+              'affection, romance, a shared activity, or another form of '
+              'intimacy that interests you both. Approach the experience '
+              'with curiosity, communicate openly, and respect each '
+              'other\'s comfort and boundaries.',
+          xp: 50,
+          repeatPeriod: TaskRepeatPeriod.weekly,
+          rewardLimit: 1,
+        ),
+        RelationshipTask(
+          id: 'discover_intimacy_item',
+          categoryId: 'intimacy',
+          name: 'Discover something new for your intimacy',
+          description:
+              'Explore or shop together for a new item, accessory, '
+              'resource, or experience that could enhance your intimacy. '
+              'Discuss what interests you, consider your shared '
+              'preferences, and make a decision together. A purchase '
+              'is optional; discovering something new and discussing '
+              'it together is enough.',
+          xp: 50,
           repeatPeriod: TaskRepeatPeriod.weekly,
           rewardLimit: 1,
         ),
