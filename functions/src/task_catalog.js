@@ -6,10 +6,13 @@ const TASK_REPEAT_PERIOD = {
 };
 
 const TASK_CATALOG = {
-  // Appreciation
+  // Words of Worth
 
   specific_compliment: {
-    name: "Give a specific compliment",
+    name: "Praise of the Worthy",
+    description:
+      "Recognize a particular quality, effort, or action you appreciate " +
+      "in your partner.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -17,7 +20,10 @@ const TASK_CATALOG = {
   },
 
   thoughtful_note: {
-    name: "Leave a thoughtful note",
+    name: "The Heartfelt Missive",
+    description:
+      "Send or leave a sincere note telling your partner something " +
+      "you appreciate about them.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -25,7 +31,10 @@ const TASK_CATALOG = {
   },
 
   remember_favorite_topic: {
-    name: "Remember something about a favorite topic",
+    name: "Lore of the Beloved",
+    description:
+      "Show your partner that you remember a detail about one of " +
+      "their favorite interests.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -33,17 +42,22 @@ const TASK_CATALOG = {
   },
 
   celebrate_accomplishment: {
-    name: "Celebrate an accomplishment",
+    name: "A Victory Worth Honoring",
+    description:
+      "Take time to recognize your partner's achievement, progress, " +
+      "or effort.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
   },
 
-  // Acts of Service
+  // Deeds of the Steadfast
 
   bring_drink_or_snack: {
-    name: "Bring a favorite drink or snack",
+    name: "A Token of Comfort",
+    description:
+      "Offer your partner a favorite refreshment as a thoughtful gesture.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -51,7 +65,10 @@ const TASK_CATALOG = {
   },
 
   handle_partner_chore: {
-    name: "Take care of one of their usual chores",
+    name: "The Burden Lifted",
+    description:
+      "Take care of a household responsibility your partner would " +
+      "normally handle.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -59,7 +76,9 @@ const TASK_CATALOG = {
   },
 
   help_with_errand: {
-    name: "Help with an errand",
+    name: "A Journey in Their Stead",
+    description:
+      "Take care of an errand on your partner's behalf.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -67,17 +86,23 @@ const TASK_CATALOG = {
   },
 
   handle_difficult_task: {
-    name: "Handle a difficult task for your partner",
+    name: "The Trial of the Steadfast",
+    description:
+      "Take on an especially inconvenient, tiring, or time-consuming " +
+      "task to help your partner.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
   },
 
-  // Quality Time
+  // Adventures Together
 
   distraction_free_time: {
-    name: "Spend 20 minutes distraction-free together",
+    name: "The Companion's Respite",
+    description:
+      "Put distractions away and enjoy at least 20 intentional " +
+      "minutes together.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -85,7 +110,9 @@ const TASK_CATALOG = {
   },
 
   shared_walk: {
-    name: "Take a walk together",
+    name: "Steps in Unison",
+    description:
+      "Share a walk and spend time connecting along the way.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -93,7 +120,9 @@ const TASK_CATALOG = {
   },
 
   plan_date_night: {
-    name: "Plan a date night",
+    name: "The Evening Quest",
+    description:
+      "Take the initiative to plan an intentional date or shared activity.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -101,17 +130,22 @@ const TASK_CATALOG = {
   },
 
   special_outing: {
-    name: "Plan a special outing",
+    name: "An Adventure Worth Remembering",
+    description:
+      "Plan a special shared experience, such as a day trip, event, " +
+      "or memorable outing.",
     xp: 100,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
   },
 
-  // Communication
+  // The Council of Two
 
   ask_about_day: {
-    name: "Ask about their day and really listen",
+    name: "The Attentive Companion",
+    description:
+      "Invite your partner to share their day and listen without distractions.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -119,7 +153,10 @@ const TASK_CATALOG = {
   },
 
   meaningful_check_in: {
-    name: "Have a meaningful check-in",
+    name: "The Heart's Council",
+    description:
+      "Have an intentional conversation about your feelings, needs, " +
+      "and experiences.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
@@ -127,7 +164,9 @@ const TASK_CATALOG = {
   },
 
   share_gratitude: {
-    name: "Share something you are grateful for",
+    name: "Blessings of the Bond",
+    description:
+      "Express gratitude for something meaningful in your relationship.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -135,17 +174,23 @@ const TASK_CATALOG = {
   },
 
   constructive_conversation: {
-    name: "Work through a disagreement constructively",
+    name: "The Bridge of Understanding",
+    description:
+      "Discuss a disagreement respectfully and work toward " +
+      "understanding each other's perspectives.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
   },
 
-  // Romance
+  // Embers of Affection
 
   affectionate_gesture: {
-    name: "Share an affectionate gesture",
+    name: "A Tender Offering",
+    description:
+      "Express affection in a way your partner appreciates and feels " +
+      "comfortable receiving.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -153,7 +198,9 @@ const TASK_CATALOG = {
   },
 
   small_romantic_surprise: {
-    name: "Create a small romantic surprise",
+    name: "The Lover's Token",
+    description:
+      "Offer an unexpected, thoughtful gesture of romance or affection.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -161,7 +208,9 @@ const TASK_CATALOG = {
   },
 
   plan_romantic_evening: {
-    name: "Plan a romantic evening",
+    name: "An Evening by Emberlight",
+    description:
+      "Plan an intentional romantic evening focused on enjoying time together.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -169,17 +218,21 @@ const TASK_CATALOG = {
   },
 
   recreate_memory: {
-    name: "Recreate a favorite memory",
+    name: "Echoes of Our Story",
+    description:
+      "Revisit or recreate a favorite memory from your relationship.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
   },
 
-  // Support
+  // The Steadfast Companion
 
   encourage_goal: {
-    name: "Encourage one of their goals",
+    name: "A Voice Beside You",
+    description:
+      "Remind your partner that you believe in a goal they are pursuing.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -187,7 +240,10 @@ const TASK_CATALOG = {
   },
 
   help_with_goal: {
-    name: "Help with one of their goals",
+    name: "A Hand in Their Quest",
+    description:
+      "Assist your partner with a meaningful step toward something " +
+      "they want to achieve.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
@@ -195,7 +251,9 @@ const TASK_CATALOG = {
   },
 
   support_stressful_day: {
-    name: "Support them through a stressful day",
+    name: "A Haven in Hardship",
+    description:
+      "Do something caring that eases your partner's stressful day.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -203,17 +261,21 @@ const TASK_CATALOG = {
   },
 
   show_interest_hobby: {
-    name: "Show interest in one of their hobbies",
+    name: "The Curious Companion",
+    description:
+      "Spend time learning about or discussing a hobby your partner enjoys.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
   },
 
-  // Household
+  // Hearth & Homestead
 
   clean_shared_space: {
-    name: "Clean a shared space",
+    name: "The Hearth Restored",
+    description:
+      "Clean or tidy an area you and your partner both use.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -221,7 +283,9 @@ const TASK_CATALOG = {
   },
 
   finish_laundry: {
-    name: "Take care of the laundry",
+    name: "The Garments Renewed",
+    description:
+      "Take care of a substantial laundry task for your household.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -229,7 +293,9 @@ const TASK_CATALOG = {
   },
 
   prepare_meal: {
-    name: "Prepare a meal",
+    name: "A Meal from the Hearth",
+    description:
+      "Make a thoughtful meal that your partner or both of you can enjoy.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -237,17 +303,22 @@ const TASK_CATALOG = {
   },
 
   household_project: {
-    name: "Complete a household project",
+    name: "A Labor for the Hearth",
+    description:
+      "Finish a meaningful household repair, organization, or improvement project.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
   },
 
-  // Shared Goals
+  // The Pact of Two
 
   goal_progress: {
-    name: "Make progress on a shared goal",
+    name: "The Pact Advances",
+    description:
+      "Take a meaningful step toward a goal you and your partner " +
+      "have agreed to pursue together.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -255,7 +326,9 @@ const TASK_CATALOG = {
   },
 
   plan_shared_goal: {
-    name: "Plan the next step of a shared goal",
+    name: "Charting the Path Ahead",
+    description:
+      "Spend time planning what comes next for a goal you are pursuing together.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
@@ -263,7 +336,9 @@ const TASK_CATALOG = {
   },
 
   complete_goal_milestone: {
-    name: "Complete a shared-goal milestone",
+    name: "A Milestone of the Pact",
+    description:
+      "Reach an important milestone in a goal you are working toward together.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -271,17 +346,21 @@ const TASK_CATALOG = {
   },
 
   complete_major_goal: {
-    name: "Complete a major shared goal",
+    name: "The Pact Fulfilled",
+    description:
+      "Complete and celebrate a significant goal you have worked toward together.",
     xp: 100,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
   },
 
-  // Spiritual
+  // The Inner Lantern
 
   share_personal_meaning: {
-    name: "Share something that gives you meaning",
+    name: "The Lantern Within",
+    description:
+      "Share a belief, value, or experience that gives your life meaning.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -289,7 +368,10 @@ const TASK_CATALOG = {
   },
 
   learn_partner_beliefs: {
-    name: "Learn about your partner's beliefs",
+    name: "The Seeker's Lantern",
+    description:
+      "Ask about your partner's beliefs or values and listen with curiosity " +
+      "and respect.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
@@ -297,7 +379,10 @@ const TASK_CATALOG = {
   },
 
   shared_meaningful_practice: {
-    name: "Share a meaningful practice",
+    name: "Ritual of Two Lanterns",
+    description:
+      "Share a spiritual, reflective, or values-based practice that " +
+      "feels meaningful to you both.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -305,7 +390,10 @@ const TASK_CATALOG = {
   },
 
   meaningful_experience: {
-    name: "Explore a meaningful experience together",
+    name: "Beyond the Lantern's Glow",
+    description:
+      "Create a memorable shared experience centered on what gives " +
+      "your lives meaning.",
     xp: 100,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -313,17 +401,22 @@ const TASK_CATALOG = {
   },
 
   shared_spiritual_study: {
-    name: "Participate in a spiritual study together",
+    name: "The Lantern's Lore",
+    description:
+      "Explore a meaningful teaching, text, or question together " +
+      "and share your perspectives.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
   },
 
-  // Intimacy
+  // The Inner Sanctuary
 
   intimate_appreciation: {
-    name: "Express an intimate appreciation",
+    name: "Whispers of Appreciation",
+    description:
+      "Express sincere appreciation for an aspect of your intimate connection.",
     xp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -331,7 +424,10 @@ const TASK_CATALOG = {
   },
 
   discuss_intimacy_preferences: {
-    name: "Discuss intimacy and preferences",
+    name: "The Sanctuary's Council",
+    description:
+      "Have an open, respectful conversation about each other's intimacy " +
+      "preferences and boundaries.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
@@ -339,7 +435,10 @@ const TASK_CATALOG = {
   },
 
   intentional_closeness: {
-    name: "Make time for physical or emotional closeness",
+    name: "The Embrace of Two",
+    description:
+      "Enjoy a moment of mutually welcome closeness without pressure " +
+      "or expectation.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -347,7 +446,9 @@ const TASK_CATALOG = {
   },
 
   plan_intimate_experience: {
-    name: "Plan a special intimate experience",
+    name: "An Evening in the Sanctuary",
+    description:
+      "Plan an intimate experience that you both want and feel comfortable sharing.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -355,7 +456,10 @@ const TASK_CATALOG = {
   },
 
   selfless_affection: {
-    name: "Offer a moment of selfless affection",
+    name: "The Gift of Tenderness",
+    description:
+      "Offer affection in a way your partner enjoys, without expecting " +
+      "anything in return.",
     xp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
@@ -363,7 +467,10 @@ const TASK_CATALOG = {
   },
 
   explore_new_intimate_experience: {
-    name: "Explore a new intimate experience together",
+    name: "Beyond the Familiar Veil",
+    description:
+      "Explore a new intimate experience that you both freely agree to " +
+      "and feel comfortable trying.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
@@ -371,7 +478,10 @@ const TASK_CATALOG = {
   },
 
   discover_intimacy_item: {
-    name: "Discover something new for your intimacy",
+    name: "An Artifact of Affection",
+    description:
+      "Discover an item that might enhance intimacy and consider it " +
+      "together without pressure.",
     xp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,

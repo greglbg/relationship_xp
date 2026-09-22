@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/catalog_task_service.dart';
 import '../../tasks/task_catalog.dart';
 import '../../tasks/quest_category_names.dart';
+import '../../tasks/quest_display_names.dart';
 import 'custom_claim_screen.dart';
 
 class SubmitClaimScreen extends StatelessWidget {
@@ -257,13 +258,13 @@ class CategoryTaskScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            task.name,
+                            QuestDisplayNames.titleFor(task),
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            task.description,
+                            QuestDisplayNames.descriptionFor(task),
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 10),
@@ -500,7 +501,7 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
                         'was awarded.'
                   : 'You earned '
                         '${result.xpAwarded} XP for '
-                        '${result.taskName}.',
+                        '${QuestDisplayNames.titleFor(widget.task)}.',
             ),
             actions: [
               FilledButton(
@@ -661,13 +662,13 @@ class _CatalogTaskDetailsScreenState extends State<CatalogTaskDetailsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                widget.task.name,
+                QuestDisplayNames.titleFor(widget.task),
                 style: Theme.of(context).textTheme.headlineMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               Text(
-                widget.task.description,
+                QuestDisplayNames.descriptionFor(widget.task),
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 28),
