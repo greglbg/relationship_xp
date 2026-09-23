@@ -25,6 +25,7 @@ initializeApp();
 const db = getFirestore();
 
 const CUSTOM_TASK_XP = 25;
+const CUSTOM_TASK_BP = 10;
 const DAILY_CUSTOM_REWARD_LIMIT = 3;
 
 const INDIVIDUAL_LEVEL_CAP = 50;
@@ -416,7 +417,7 @@ function awardedXpForClaim(claim) {
 /**
  * Reads the awarded BP value from a stored claim.
  *
- * Older catalog claims created before BP existed return zero.
+ * Older claims created before BP existed return zero.
  *
  * @param {Object} claim Stored claim data.
  * @return {number} Awarded Brownie Points.
@@ -835,13 +836,6 @@ exports.completeCatalogTask =
               catalogXpEarnedToday +
               task.xp;
 
-            /*
-             * Apply the BP credit after every required Firestore
-             * read has completed, but before the transaction commits.
-             *
-             * If any later write fails, Firestore rolls back both
-             * the XP and BP changes.
-             */
             const bpResult =
               applyBrowniePointCredit(
                   transaction,
@@ -1070,6 +1064,10 @@ exports.approveCustomClaim =
                   awardedXpForClaim(
                       claim,
                   ),
+                bpAwarded:
+                  awardedBpForClaim(
+                      claim,
+                  ),
                 rewardedCustomActivitiesToday:
                   null,
                 dailyCustomRewardLimit:
@@ -1116,6 +1114,16 @@ exports.approveCustomClaim =
                   .collection("memberProgress")
                   .doc(claimantId);
 
+            const bpRefs =
+              browniePointCreditRefs(
+                  coupleRef,
+                  claimantId,
+                  claimId,
+              );
+
+            /*
+             * All Firestore reads happen before any writes.
+             */
             const customLedgerSnapshot =
               await transaction.get(
                   customLedgerRef,
@@ -1124,6 +1132,16 @@ exports.approveCustomClaim =
             const progressSnapshot =
               await transaction.get(
                   progressRef,
+              );
+
+            const bpTransactionSnapshot =
+              await transaction.get(
+                  bpRefs.bpTransactionRef,
+              );
+
+            const bpWalletSnapshot =
+              await transaction.get(
+                  bpRefs.walletRef,
               );
 
             const rewardedCount =
@@ -1168,7 +1186,49 @@ exports.approveCustomClaim =
                 rewardedCount + 1 :
                 rewardedCount;
 
+            let awardedBp = 0;
+            let bpBalance = null;
+
             if (rewardAvailable) {
+              const bpResult =
+                applyBrowniePointCredit(
+                    transaction,
+                    {
+                      walletRef:
+                        bpRefs.walletRef,
+                      bpTransactionRef:
+                        bpRefs.bpTransactionRef,
+                      walletSnapshot:
+                        bpWalletSnapshot,
+                      bpTransactionSnapshot:
+                        bpTransactionSnapshot,
+                      transactionId:
+                        bpRefs.transactionId,
+                      userId:
+                        claimantId,
+                      amount:
+                        CUSTOM_TASK_BP,
+                      eventId:
+                        claimId,
+                      sourceType:
+                        "custom_task",
+                    },
+                );
+
+              if (bpResult.alreadyCredited) {
+                throw new HttpsError(
+                    "already-exists",
+                    "Brownie Points have already " +
+                    "been awarded for this custom activity.",
+                );
+              }
+
+              awardedBp =
+                bpResult.amount;
+
+              bpBalance =
+                bpResult.balance;
+
               transaction.set(
                   customLedgerRef,
                   {
@@ -1206,6 +1266,10 @@ exports.approveCustomClaim =
               baseXp:
                 CUSTOM_TASK_XP,
               awardedXp: awardedXp,
+              baseBp:
+                CUSTOM_TASK_BP,
+              awardedBp:
+                awardedBp,
               approvalDayKey:
                 dayKey,
               reviewedByUserId:
@@ -1232,6 +1296,12 @@ exports.approveCustomClaim =
                 CUSTOM_TASK_XP,
               xpAwarded: awardedXp,
               totalXp: newTotalXp,
+              baseBp:
+                CUSTOM_TASK_BP,
+              bpAwarded:
+                awardedBp,
+              bpBalance:
+                bpBalance,
               rewardAvailable:
                 rewardAvailable,
               rewardedCustomActivitiesToday:

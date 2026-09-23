@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../game/bp_wallet.dart';
 import '../../game/xp_system.dart';
 import '../claims/pending_reviews_screen.dart';
 import '../claims/resubmit_claim_screen.dart';
@@ -349,6 +350,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 coupleXp: coupleXp,
                               ),
                               const SizedBox(height: 16),
+                              BrowniePointWalletCard(
+                                coupleId: coupleId,
+                                userId: user.uid,
+                              ),
+                              const SizedBox(height: 16),
                               PartnerProgressCard(
                                 name: displayName,
                                 label: 'You',
@@ -422,8 +428,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'Approved activities earn XP. '
-                                'Activities that need changes '
+                                'Approved activities earn XP and may earn '
+                                'Brownie Points. Activities that need changes '
                                 'carry no penalty.',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodySmall,
@@ -490,6 +496,94 @@ class CoupleSummaryCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class BrowniePointWalletCard extends StatelessWidget {
+  const BrowniePointWalletCard({
+    required this.coupleId,
+    required this.userId,
+    super.key,
+  });
+
+  final String coupleId;
+  final String userId;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<int>(
+      stream: BpWallet.balanceStream(
+        coupleId: coupleId,
+        userId: userId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  const Icon(Icons.toll_outlined, size: 32),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Unable to load your Brownie Points.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final balance = snapshot.data ?? 0;
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  child: Icon(
+                    Icons.toll_outlined,
+                    size: 30,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Brownie Points',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$balance BP',
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Spendable rewards earned through your adventures.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
