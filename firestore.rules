@@ -219,6 +219,18 @@ service cloud.firestore {
 
         allow create, update, delete: if false;
       }
+
+      match /bpWallets/{userId} {
+        allow read: if isCoupleMember(coupleId);
+
+        allow create, update, delete: if false;
+      }
+
+      match /bpTransactions/{transactionId} {
+        allow read: if isCoupleMember(coupleId);
+
+        allow create, update, delete: if false;
+      }
     }
 
     match /coupleInvites/{inviteCode} {

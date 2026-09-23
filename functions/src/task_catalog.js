@@ -14,6 +14,7 @@ const TASK_CATALOG = {
       "Recognize a particular quality, effort, or action you appreciate " +
       "in your partner.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -25,6 +26,7 @@ const TASK_CATALOG = {
       "Send or leave a sincere note telling your partner something " +
       "you appreciate about them.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -36,6 +38,7 @@ const TASK_CATALOG = {
       "Show your partner that you remember a detail about one of " +
       "their favorite interests.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -47,6 +50,7 @@ const TASK_CATALOG = {
       "Take time to recognize your partner's achievement, progress, " +
       "or effort.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -59,6 +63,7 @@ const TASK_CATALOG = {
     description:
       "Offer your partner a favorite refreshment as a thoughtful gesture.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -70,6 +75,7 @@ const TASK_CATALOG = {
       "Take care of a household responsibility your partner would " +
       "normally handle.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -80,6 +86,7 @@ const TASK_CATALOG = {
     description:
       "Take care of an errand on your partner's behalf.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -91,6 +98,7 @@ const TASK_CATALOG = {
       "Take on an especially inconvenient, tiring, or time-consuming " +
       "task to help your partner.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -104,6 +112,7 @@ const TASK_CATALOG = {
       "Put distractions away and enjoy at least 20 intentional " +
       "minutes together.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -114,6 +123,7 @@ const TASK_CATALOG = {
     description:
       "Share a walk and spend time connecting along the way.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -124,6 +134,7 @@ const TASK_CATALOG = {
     description:
       "Take the initiative to plan an intentional date or shared activity.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -135,6 +146,7 @@ const TASK_CATALOG = {
       "Plan a special shared experience, such as a day trip, event, " +
       "or memorable outing.",
     xp: 100,
+    bp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -147,6 +159,7 @@ const TASK_CATALOG = {
     description:
       "Invite your partner to share their day and listen without distractions.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -158,6 +171,7 @@ const TASK_CATALOG = {
       "Have an intentional conversation about your feelings, needs, " +
       "and experiences.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -168,6 +182,7 @@ const TASK_CATALOG = {
     description:
       "Express gratitude for something meaningful in your relationship.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -179,6 +194,7 @@ const TASK_CATALOG = {
       "Discuss a disagreement respectfully and work toward " +
       "understanding each other's perspectives.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -192,6 +208,7 @@ const TASK_CATALOG = {
       "Express affection in a way your partner appreciates and feels " +
       "comfortable receiving.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -202,6 +219,7 @@ const TASK_CATALOG = {
     description:
       "Offer an unexpected, thoughtful gesture of romance or affection.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -212,6 +230,7 @@ const TASK_CATALOG = {
     description:
       "Plan an intentional romantic evening focused on enjoying time together.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -222,6 +241,7 @@ const TASK_CATALOG = {
     description:
       "Revisit or recreate a favorite memory from your relationship.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -234,6 +254,7 @@ const TASK_CATALOG = {
     description:
       "Remind your partner that you believe in a goal they are pursuing.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -245,6 +266,7 @@ const TASK_CATALOG = {
       "Assist your partner with a meaningful step toward something " +
       "they want to achieve.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -255,6 +277,7 @@ const TASK_CATALOG = {
     description:
       "Do something caring that eases your partner's stressful day.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -265,6 +288,7 @@ const TASK_CATALOG = {
     description:
       "Spend time learning about or discussing a hobby your partner enjoys.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -277,6 +301,7 @@ const TASK_CATALOG = {
     description:
       "Clean or tidy an area you and your partner both use.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -287,6 +312,7 @@ const TASK_CATALOG = {
     description:
       "Take care of a substantial laundry task for your household.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -297,6 +323,7 @@ const TASK_CATALOG = {
     description:
       "Make a thoughtful meal that your partner or both of you can enjoy.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -307,6 +334,7 @@ const TASK_CATALOG = {
     description:
       "Finish a meaningful household repair, organization, or improvement project.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -320,6 +348,7 @@ const TASK_CATALOG = {
       "Take a meaningful step toward a goal you and your partner " +
       "have agreed to pursue together.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -330,6 +359,7 @@ const TASK_CATALOG = {
     description:
       "Spend time planning what comes next for a goal you are pursuing together.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -340,6 +370,7 @@ const TASK_CATALOG = {
     description:
       "Reach an important milestone in a goal you are working toward together.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -350,6 +381,7 @@ const TASK_CATALOG = {
     description:
       "Complete and celebrate a significant goal you have worked toward together.",
     xp: 100,
+    bp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -362,6 +394,7 @@ const TASK_CATALOG = {
     description:
       "Share a belief, value, or experience that gives your life meaning.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -373,6 +406,7 @@ const TASK_CATALOG = {
       "Ask about your partner's beliefs or values and listen with curiosity " +
       "and respect.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -384,6 +418,7 @@ const TASK_CATALOG = {
       "Share a spiritual, reflective, or values-based practice that " +
       "feels meaningful to you both.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -395,6 +430,7 @@ const TASK_CATALOG = {
       "Create a memorable shared experience centered on what gives " +
       "your lives meaning.",
     xp: 100,
+    bp: 50,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -406,6 +442,7 @@ const TASK_CATALOG = {
       "Explore a meaningful teaching, text, or question together " +
       "and share your perspectives.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -418,6 +455,7 @@ const TASK_CATALOG = {
     description:
       "Express sincere appreciation for an aspect of your intimate connection.",
     xp: 10,
+    bp: 5,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -429,6 +467,7 @@ const TASK_CATALOG = {
       "Have an open, respectful conversation about each other's intimacy " +
       "preferences and boundaries.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 2,
     enabled: true,
@@ -440,6 +479,7 @@ const TASK_CATALOG = {
       "Enjoy a moment of mutually welcome closeness without pressure " +
       "or expectation.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -450,6 +490,7 @@ const TASK_CATALOG = {
     description:
       "Plan an intimate experience that you both want and feel comfortable sharing.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -461,6 +502,7 @@ const TASK_CATALOG = {
       "Offer affection in a way your partner enjoys, without expecting " +
       "anything in return.",
     xp: 25,
+    bp: 10,
     repeatPeriod: TASK_REPEAT_PERIOD.DAILY,
     rewardLimit: 1,
     enabled: true,
@@ -472,6 +514,7 @@ const TASK_CATALOG = {
       "Explore a new intimate experience that you both freely agree to " +
       "and feel comfortable trying.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,
@@ -483,6 +526,7 @@ const TASK_CATALOG = {
       "Discover an item that might enhance intimacy and consider it " +
       "together without pressure.",
     xp: 50,
+    bp: 25,
     repeatPeriod: TASK_REPEAT_PERIOD.WEEKLY,
     rewardLimit: 1,
     enabled: true,

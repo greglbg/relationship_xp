@@ -15,6 +15,11 @@ const {
   TASK_REPEAT_PERIOD,
 } = require("./src/task_catalog");
 
+const {
+  browniePointCreditRefs,
+  applyBrowniePointCredit,
+} = require("./src/bp_wallet");
+
 initializeApp();
 
 const db = getFirestore();
@@ -409,6 +414,25 @@ function awardedXpForClaim(claim) {
 }
 
 /**
+ * Reads the awarded BP value from a stored claim.
+ *
+ * Older catalog claims created before BP existed return zero.
+ *
+ * @param {Object} claim Stored claim data.
+ * @return {number} Awarded Brownie Points.
+ */
+function awardedBpForClaim(claim) {
+  if (
+    Number.isSafeInteger(claim.awardedBp) &&
+    claim.awardedBp >= 0
+  ) {
+    return claim.awardedBp;
+  }
+
+  return 0;
+}
+
+/**
  * Reads the authoritative XP total from a member progress document.
  *
  * A missing progress document is treated as zero for new users.
@@ -543,6 +567,7 @@ exports.validateCatalogTask =
         id: taskId,
         name: task.name,
         xp: task.xp,
+        bp: task.bp,
         repeatPeriod: task.repeatPeriod,
         rewardLimit: task.rewardLimit,
       },
@@ -588,6 +613,16 @@ exports.completeCatalogTask =
 
     const task = getTask(taskId);
 
+    if (
+      !Number.isSafeInteger(task.bp) ||
+      task.bp <= 0
+    ) {
+      throw new HttpsError(
+          "internal",
+          "The activity Brownie Points reward is invalid.",
+      );
+    }
+
     const now = new Date();
 
     const dayKey =
@@ -629,6 +664,13 @@ exports.completeCatalogTask =
       coupleRef
           .collection("memberProgress")
           .doc(userId);
+
+    const bpRefs =
+      browniePointCreditRefs(
+          coupleRef,
+          userId,
+          completionId,
+      );
 
     const result =
       await db.runTransaction(
@@ -674,6 +716,10 @@ exports.completeCatalogTask =
                     awardedXpForClaim(
                         existingClaim,
                     ),
+                  bpAwarded:
+                    awardedBpForClaim(
+                        existingClaim,
+                    ),
                   dailyCatalogXpTarget:
                     DAILY_CATALOG_XP_TARGET,
                 };
@@ -686,6 +732,12 @@ exports.completeCatalogTask =
               );
             }
 
+            /*
+             * All transaction reads happen before any writes.
+             *
+             * This is especially important now that XP and BP are
+             * awarded atomically in the same Firestore transaction.
+             */
             const dailyLedgerSnapshot =
               await transaction.get(
                   dailyLedgerRef,
@@ -699,6 +751,16 @@ exports.completeCatalogTask =
             const progressSnapshot =
               await transaction.get(
                   progressRef,
+              );
+
+            const bpTransactionSnapshot =
+              await transaction.get(
+                  bpRefs.bpTransactionRef,
+              );
+
+            const bpWalletSnapshot =
+              await transaction.get(
+                  bpRefs.walletRef,
               );
 
             const catalogXpEarnedToday =
@@ -773,6 +835,43 @@ exports.completeCatalogTask =
               catalogXpEarnedToday +
               task.xp;
 
+            /*
+             * Apply the BP credit after every required Firestore
+             * read has completed, but before the transaction commits.
+             *
+             * If any later write fails, Firestore rolls back both
+             * the XP and BP changes.
+             */
+            const bpResult =
+              applyBrowniePointCredit(
+                  transaction,
+                  {
+                    walletRef:
+                      bpRefs.walletRef,
+                    bpTransactionRef:
+                      bpRefs.bpTransactionRef,
+                    walletSnapshot:
+                      bpWalletSnapshot,
+                    bpTransactionSnapshot:
+                      bpTransactionSnapshot,
+                    transactionId:
+                      bpRefs.transactionId,
+                    userId: userId,
+                    amount: task.bp,
+                    eventId: completionId,
+                    sourceType:
+                      "catalog_task",
+                  },
+              );
+
+            if (bpResult.alreadyCredited) {
+              throw new HttpsError(
+                  "already-exists",
+                  "Brownie Points have already " +
+                  "been awarded for this completion.",
+              );
+            }
+
             transaction.set(
                 dailyLedgerRef,
                 {
@@ -823,6 +922,9 @@ exports.completeCatalogTask =
               xp: task.xp,
               baseXp: task.xp,
               awardedXp: awardedXp,
+              baseBp: task.bp,
+              awardedBp:
+                bpResult.amount,
               submittedByUserId:
                 userId,
               status: "approved",
@@ -862,6 +964,11 @@ exports.completeCatalogTask =
               baseXp: task.xp,
               xpAwarded: awardedXp,
               totalXp: newTotalXp,
+              baseBp: task.bp,
+              bpAwarded:
+                bpResult.amount,
+              bpBalance:
+                bpResult.balance,
               levelCapReached:
                 newTotalXp >=
                 INDIVIDUAL_XP_CAP,
