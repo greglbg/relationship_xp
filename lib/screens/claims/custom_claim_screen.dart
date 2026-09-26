@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../tasks/task_catalog.dart';
 
@@ -19,78 +15,12 @@ class CustomClaimScreen extends StatefulWidget {
 
 class _CustomClaimScreenState extends State<CustomClaimScreen> {
   final titleController = TextEditingController();
-  final ImagePicker imagePicker = ImagePicker();
 
   bool isLoading = false;
   String? errorMessage;
-  XFile? selectedImage;
-
-  Future<void> choosePhotoSource() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.camera_alt),
-                  title: const Text('Take Photo'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-
-                    pickImage(ImageSource.camera);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library),
-                  title: const Text('Choose from Gallery'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-
-                    pickImage(ImageSource.gallery);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> pickImage(ImageSource source) async {
-    try {
-      final image = await imagePicker.pickImage(
-        source: source,
-        imageQuality: 75,
-        maxWidth: 1600,
-      );
-
-      if (image == null) {
-        return;
-      }
-
-      if (mounted) {
-        setState(() {
-          selectedImage = image;
-          errorMessage = null;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Unable to select that photo.';
-        });
-      }
-    }
-  }
 
   Future<void> submitClaim() async {
     final user = FirebaseAuth.instance.currentUser;
-
     final title = titleController.text.trim();
 
     if (user == null) {
@@ -131,24 +61,6 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
           .collection('claims')
           .doc();
 
-      String? photoPath;
-
-      if (selectedImage != null) {
-        photoPath =
-            'temporaryPhotos/couples/'
-            '${widget.coupleId}/claims/'
-            '${claimReference.id}/proof.jpg';
-
-        final storageReference = FirebaseStorage.instance.ref().child(
-          photoPath,
-        );
-
-        await storageReference.putFile(
-          File(selectedImage!.path),
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-      }
-
       final claimData = <String, dynamic>{
         'title': title,
         'xp': TaskCatalog.customTaskXp,
@@ -156,10 +68,6 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       };
-
-      if (photoPath != null) {
-        claimData['photoPath'] = photoPath;
-      }
 
       await claimReference.set(claimData);
 
@@ -236,106 +144,6 @@ class _CustomClaimScreenState extends State<CustomClaimScreen> {
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 24),
-              Text(
-                'Photo',
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Optional — add a photo if you '
-                'would like to share one with '
-                'your partner.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.info_outline),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Temporary Photos',
-                              style: Theme.of(context).textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Photos are optional and '
-                              'are normally removed from '
-                              'Relationship XP '
-                              'approximately 3 days '
-                              'after upload.',
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Do not upload sensitive, '
-                              'intimate, confidential, '
-                              'or other content you '
-                              'would not want stored '
-                              'on the service.',
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Photos may be accessible '
-                              'to authorized '
-                              'administrators when '
-                              'reasonably necessary to '
-                              'operate, maintain, secure, '
-                              'or troubleshoot the '
-                              'service.',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (selectedImage == null)
-                OutlinedButton.icon(
-                  onPressed: isLoading ? null : choosePhotoSource,
-                  icon: const Icon(Icons.add_a_photo),
-                  label: const Text('Add Optional Photo'),
-                )
-              else ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.file(
-                    File(selectedImage!.path),
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: isLoading ? null : choosePhotoSource,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Replace Photo'),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: isLoading
-                      ? null
-                      : () {
-                          setState(() {
-                            selectedImage = null;
-                          });
-                        },
-                  icon: const Icon(Icons.close),
-                  label: const Text('Remove Photo'),
-                ),
-              ],
               const SizedBox(height: 24),
               Card(
                 child: Padding(

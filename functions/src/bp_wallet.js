@@ -3,9 +3,9 @@
  *
  * This module is intended for trusted server-side Firebase Functions.
  *
- * It does not decide whether a player deserves BP. Existing reward
- * functions must verify authentication, couple membership, reward
- * eligibility, and the authoritative BP amount.
+ * It does not decide whether a player deserves to earn or spend BP.
+ * Calling functions must verify authentication, couple membership,
+ * transaction eligibility, and the authoritative BP amount.
  *
  * Wallets:
  * couples/{coupleId}/bpWallets/{userId}
@@ -18,6 +18,12 @@ const {FieldValue} = require("firebase-admin/firestore");
 
 const BP_WALLET_SCHEMA_VERSION = 1;
 
+/**
+ * Validates a positive Brownie Point amount.
+ *
+ * @param {*} amount Brownie Point amount.
+ * @return {number} Validated Brownie Point amount.
+ */
 function requirePositiveBpAmount(amount) {
   if (!Number.isSafeInteger(amount) || amount <= 0) {
     throw new Error(
@@ -28,6 +34,12 @@ function requirePositiveBpAmount(amount) {
   return amount;
 }
 
+/**
+ * Validates a Brownie Point wallet user ID.
+ *
+ * @param {*} userId Firebase Authentication user ID.
+ * @return {string} Validated user ID.
+ */
 function requireBpUserId(userId) {
   if (
     typeof userId !== "string" ||
@@ -42,6 +54,12 @@ function requireBpUserId(userId) {
   return userId;
 }
 
+/**
+ * Validates a Brownie Point event ID.
+ *
+ * @param {*} eventId Brownie Point event ID.
+ * @return {string} Validated event ID.
+ */
 function requireBpEventId(eventId) {
   if (
     typeof eventId !== "string" ||
@@ -49,26 +67,38 @@ function requireBpEventId(eventId) {
     eventId.includes("/")
   ) {
     throw new Error(
-        "A valid reward event ID is required.",
+        "A valid Brownie Points event ID is required.",
     );
   }
 
   return eventId;
 }
 
+/**
+ * Validates a Brownie Point transaction source type.
+ *
+ * @param {*} sourceType Transaction source type.
+ * @return {string} Validated source type.
+ */
 function requireBpSourceType(sourceType) {
   if (
     typeof sourceType !== "string" ||
     sourceType.length === 0
   ) {
     throw new Error(
-        "A valid BP reward source is required.",
+        "A valid BP transaction source is required.",
     );
   }
 
   return sourceType;
 }
 
+/**
+ * Reads the current balance from a Brownie Point wallet snapshot.
+ *
+ * @param {Object} walletSnapshot Firestore wallet document snapshot.
+ * @return {number} Current Brownie Point balance.
+ */
 function readBpBalance(walletSnapshot) {
   if (!walletSnapshot.exists) {
     return 0;
@@ -85,7 +115,15 @@ function readBpBalance(walletSnapshot) {
   return balance;
 }
 
-function browniePointCreditRefs(
+/**
+ * Creates wallet and transaction references for a BP event.
+ *
+ * @param {Object} coupleRef Firestore couple document reference.
+ * @param {string} userId Firebase Authentication user ID.
+ * @param {string} eventId Brownie Point event ID.
+ * @return {Object} Wallet and transaction references.
+ */
+function browniePointTransactionRefs(
     coupleRef,
     userId,
     eventId,
@@ -111,6 +149,53 @@ function browniePointCreditRefs(
   };
 }
 
+/**
+ * Creates wallet and transaction references for a BP credit.
+ *
+ * @param {Object} coupleRef Firestore couple document reference.
+ * @param {string} userId Firebase Authentication user ID.
+ * @param {string} eventId Brownie Point event ID.
+ * @return {Object} Wallet and transaction references.
+ */
+function browniePointCreditRefs(
+    coupleRef,
+    userId,
+    eventId,
+) {
+  return browniePointTransactionRefs(
+      coupleRef,
+      userId,
+      eventId,
+  );
+}
+
+/**
+ * Creates wallet and transaction references for a BP debit.
+ *
+ * @param {Object} coupleRef Firestore couple document reference.
+ * @param {string} userId Firebase Authentication user ID.
+ * @param {string} eventId Brownie Point event ID.
+ * @return {Object} Wallet and transaction references.
+ */
+function browniePointDebitRefs(
+    coupleRef,
+    userId,
+    eventId,
+) {
+  return browniePointTransactionRefs(
+      coupleRef,
+      userId,
+      eventId,
+  );
+}
+
+/**
+ * Applies an idempotent Brownie Point credit.
+ *
+ * @param {Object} transaction Firestore transaction.
+ * @param {Object} data Brownie Point credit data.
+ * @return {Object} Brownie Point credit result.
+ */
 function applyBrowniePointCredit(
     transaction,
     {
@@ -210,10 +295,124 @@ function applyBrowniePointCredit(
   };
 }
 
+/**
+ * Applies an idempotent Brownie Point debit.
+ *
+ * @param {Object} transaction Firestore transaction.
+ * @param {Object} data Brownie Point debit data.
+ * @return {Object} Brownie Point debit result.
+ */
+function applyBrowniePointDebit(
+    transaction,
+    {
+      walletRef,
+      bpTransactionRef,
+      walletSnapshot,
+      bpTransactionSnapshot,
+      transactionId,
+      userId,
+      amount,
+      eventId,
+      sourceType,
+    },
+) {
+  requireBpUserId(userId);
+  requireBpEventId(eventId);
+  requireBpSourceType(sourceType);
+  requirePositiveBpAmount(amount);
+
+  const expectedTransactionId =
+    `${userId}_${eventId}`;
+
+  if (transactionId !== expectedTransactionId) {
+    throw new Error(
+        "The BP transaction ID is invalid.",
+    );
+  }
+
+  if (bpTransactionSnapshot.exists) {
+    const existing =
+      bpTransactionSnapshot.data();
+
+    if (
+      existing.userId !== userId ||
+      existing.eventId !== eventId ||
+      existing.sourceType !== sourceType ||
+      existing.amount !== amount ||
+      existing.type !== "debit"
+    ) {
+      throw new Error(
+          "This BP spending event conflicts with an existing transaction.",
+      );
+    }
+
+    return {
+      alreadyDebited: true,
+      transactionId: transactionId,
+      amount: 0,
+      balance: readBpBalance(walletSnapshot),
+    };
+  }
+
+  const currentBalance =
+    readBpBalance(walletSnapshot);
+
+  if (currentBalance < amount) {
+    return {
+      alreadyDebited: false,
+      insufficientBalance: true,
+      transactionId: transactionId,
+      amount: 0,
+      balance: currentBalance,
+    };
+  }
+
+  const newBalance =
+    currentBalance - amount;
+
+  transaction.set(
+      walletRef,
+      {
+        userId: userId,
+        balance: newBalance,
+        schemaVersion:
+          BP_WALLET_SCHEMA_VERSION,
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+  );
+
+  transaction.create(
+      bpTransactionRef,
+      {
+        userId: userId,
+        eventId: eventId,
+        type: "debit",
+        sourceType: sourceType,
+        amount: amount,
+        balanceAfter: newBalance,
+        createdAt:
+          FieldValue.serverTimestamp(),
+      },
+  );
+
+  return {
+    alreadyDebited: false,
+    insufficientBalance: false,
+    transactionId: transactionId,
+    amount: amount,
+    balance: newBalance,
+  };
+}
+
 module.exports = {
   BP_WALLET_SCHEMA_VERSION,
   requirePositiveBpAmount,
   readBpBalance,
+  browniePointTransactionRefs,
   browniePointCreditRefs,
+  browniePointDebitRefs,
   applyBrowniePointCredit,
+  applyBrowniePointDebit,
 };

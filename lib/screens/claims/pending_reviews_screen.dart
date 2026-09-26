@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 class PendingReviewsScreen extends StatelessWidget {
@@ -32,7 +31,6 @@ class PendingReviewsScreen extends StatelessWidget {
       final data = response.data;
 
       final xpAwarded = (data['xpAwarded'] as num?)?.toInt() ?? 0;
-
       final alreadyApproved = data['alreadyApproved'] == true;
 
       if (!context.mounted) {
@@ -41,7 +39,9 @@ class PendingReviewsScreen extends StatelessWidget {
 
       if (alreadyApproved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This activity was already approved.')),
+          const SnackBar(
+            content: Text('This activity was already approved.'),
+          ),
         );
 
         return;
@@ -139,7 +139,9 @@ class PendingReviewsScreen extends StatelessWidget {
     } on FirebaseException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message ?? 'Unable to send feedback.')),
+          SnackBar(
+            content: Text(error.message ?? 'Unable to send feedback.'),
+          ),
         );
       }
     }
@@ -150,7 +152,9 @@ class PendingReviewsScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
     return Scaffold(
@@ -168,7 +172,9 @@ class PendingReviewsScreen extends StatelessWidget {
           }
 
           if (snapshot.hasError) {
-            return const Center(child: Text('Unable to load pending reviews.'));
+            return const Center(
+              child: Text('Unable to load pending reviews.'),
+            );
           }
 
           final claims =
@@ -203,12 +209,7 @@ class PendingReviewsScreen extends StatelessWidget {
               final data = claim.data();
 
               final title = data['title'] as String? ?? 'Untitled activity';
-
               final xp = (data['xp'] as num?)?.toInt() ?? 0;
-
-              final photoPath = data['photoPath'] as String? ?? '';
-
-              final legacyPhotoUrl = data['photoUrl'] as String? ?? '';
 
               return Card(
                 child: Padding(
@@ -218,22 +219,15 @@ class PendingReviewsScreen extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '$xp XP requested',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      if (photoPath.isNotEmpty ||
-                          legacyPhotoUrl.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        ReviewPhoto(
-                          photoPath: photoPath,
-                          legacyPhotoUrl: legacyPhotoUrl,
-                        ),
-                      ],
                       const SizedBox(height: 20),
                       Card(
                         child: Padding(
@@ -262,7 +256,10 @@ class PendingReviewsScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       FilledButton.icon(
                         onPressed: () {
-                          approveClaim(context: context, claimId: claim.id);
+                          approveClaim(
+                            context: context,
+                            claimId: claim.id,
+                          );
                         },
                         icon: const Icon(Icons.check),
                         label: const Text('Approve'),
@@ -270,7 +267,10 @@ class PendingReviewsScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
                         onPressed: () {
-                          requestChanges(context: context, claimId: claim.id);
+                          requestChanges(
+                            context: context,
+                            claimId: claim.id,
+                          );
                         },
                         icon: const Icon(Icons.edit_note),
                         label: const Text('Needs Changes'),
@@ -291,145 +291,6 @@ class PendingReviewsScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-}
-
-class ReviewPhoto extends StatelessWidget {
-  const ReviewPhoto({
-    required this.photoPath,
-    required this.legacyPhotoUrl,
-    super.key,
-  });
-
-  final String photoPath;
-  final String legacyPhotoUrl;
-
-  Future<String> getPhotoUrl() async {
-    if (photoPath.trim().isNotEmpty) {
-      try {
-        return await FirebaseStorage.instance.ref(photoPath).getDownloadURL();
-      } on FirebaseException {
-        if (legacyPhotoUrl.trim().isNotEmpty) {
-          return legacyPhotoUrl;
-        }
-
-        rethrow;
-      }
-    }
-
-    if (legacyPhotoUrl.trim().isNotEmpty) {
-      return legacyPhotoUrl;
-    }
-
-    throw FirebaseException(
-      plugin: 'firebase_storage',
-      code: 'photo-not-available',
-      message: 'The photo is no longer available.',
-    );
-  }
-
-  Future<void> showFullPhoto(BuildContext context, String photoUrl) async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          child: Stack(
-            children: [
-              InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4,
-                child: Image.network(
-                  photoUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const SizedBox(
-                      height: 300,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'Photo is no longer available.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: IconButton.filled(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                  icon: const Icon(Icons.close),
-                  tooltip: 'Close',
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: getPhotoUrl(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(
-            height: 220,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (snapshot.hasError ||
-            snapshot.data == null ||
-            snapshot.data!.isEmpty) {
-          return Container(
-            height: 120,
-            alignment: Alignment.center,
-            child: const Text(
-              'Photo is no longer available.',
-              textAlign: TextAlign.center,
-            ),
-          );
-        }
-
-        final photoUrl = snapshot.data!;
-
-        return InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            showFullPhoto(context, photoUrl);
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              photoUrl,
-              height: 220,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return const SizedBox(
-                  height: 120,
-                  child: Center(
-                    child: Text(
-                      'Photo is no longer available.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -491,8 +352,8 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
               textCapitalization: TextCapitalization.sentences,
               decoration: InputDecoration(
                 hintText:
-                    'Example: Please add a photo '
-                    'showing the finished result.',
+                    'Example: Please clarify '
+                    'what you completed.',
                 border: const OutlineInputBorder(),
                 errorText: validationMessage,
               ),

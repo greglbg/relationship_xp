@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../features/rewards/reward_shop_screen.dart';
 import '../../game/bp_wallet.dart';
 import '../../game/xp_system.dart';
 import '../claims/pending_reviews_screen.dart';
@@ -304,7 +305,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       if (pendingSnapshot.hasError) {
                         return const Center(
-                          child: Text('Unable to load pending reviews.'),
+                          child: Text(
+                            'Unable to load '
+                            'pending reviews.',
+                          ),
                         );
                       }
 
@@ -331,7 +335,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Text(
-                                'Welcome, $displayName!',
+                                'Welcome, '
+                                '$displayName!',
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineMedium
@@ -339,9 +344,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Celebrate the little things '
-                                'that make your relationship '
-                                'stronger.',
+                                'Celebrate the little '
+                                'things that make your '
+                                'relationship stronger.',
                                 style: Theme.of(context).textTheme.bodyLarge,
                               ),
                               const SizedBox(height: 32),
@@ -408,12 +413,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 const SizedBox(height: 8),
                                 Text(
                                   pendingReviewCount == 1
-                                      ? '1 activity is waiting '
-                                            'for your review.'
+                                      ? '1 activity is '
+                                            'waiting for '
+                                            'your review.'
                                       : '$pendingReviewCount '
                                             'activities are '
-                                            'waiting for your '
-                                            'review.',
+                                            'waiting for '
+                                            'your review.',
                                   textAlign: TextAlign.center,
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
@@ -428,9 +434,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'Approved activities earn XP and may earn '
-                                'Brownie Points. Activities that need changes '
-                                'carry no penalty.',
+                                'Approved activities '
+                                'earn XP and may earn '
+                                'Brownie Points. '
+                                'Activities that need '
+                                'changes carry no '
+                                'penalty.',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
@@ -510,13 +519,19 @@ class BrowniePointWalletCard extends StatelessWidget {
   final String coupleId;
   final String userId;
 
+  void openRewardHall(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            RewardShopScreen(coupleId: coupleId, userId: userId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<int>(
-      stream: BpWallet.balanceStream(
-        coupleId: coupleId,
-        userId: userId,
-      ),
+      stream: BpWallet.balanceStream(coupleId: coupleId, userId: userId),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Card(
@@ -528,7 +543,8 @@ class BrowniePointWalletCard extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      'Unable to load your Brownie Points.',
+                      'Unable to load your '
+                      'Brownie Points.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -541,45 +557,79 @@ class BrowniePointWalletCard extends StatelessWidget {
         final balance = snapshot.data ?? 0;
 
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  child: Icon(
-                    Icons.toll_outlined,
-                    size: 30,
-                    color: Theme.of(context).colorScheme.primary,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () {
+              openRewardHall(context);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    child: Icon(
+                      Icons.toll_outlined,
+                      size: 30,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Brownie Points',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$balance BP',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Brownie Points',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$balance BP',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Spendable rewards earned '
+                          'through your adventures.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.storefront_outlined,
+                              size: 18,
                               color: Theme.of(context).colorScheme.primary,
                             ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Spendable rewards earned through your adventures.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
+                            const SizedBox(width: 6),
+                            Text(
+                              'Enter Reward Hall',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward,
+                              size: 18,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -666,7 +716,8 @@ class PartnerProgressCard extends StatelessWidget {
             Text(
               totalXp >= individualXpCap
                   ? 'Maximum level reached'
-                  : '$xpIntoLevel / $xpNeeded XP to next level',
+                  : '$xpIntoLevel / $xpNeeded XP '
+                        'to next level',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 4),
@@ -704,8 +755,6 @@ class ActivityUpdatesCard extends StatelessWidget {
           claimId: claim.id,
           title: data['title'] as String? ?? '',
           xp: (data['xp'] as num?)?.toInt() ?? 25,
-          photoPath: data['photoPath'] as String? ?? '',
-          photoUrl: data['photoUrl'] as String? ?? '',
           reviewMessage:
               data['reviewMessage'] as String? ??
               'Your partner requested an update.',
@@ -716,7 +765,10 @@ class ActivityUpdatesCard extends StatelessWidget {
     if (resubmitted == true && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Activity updated and sent back for review.'),
+          content: Text(
+            'Activity updated and sent back '
+            'for review.',
+          ),
         ),
       );
     }
@@ -748,7 +800,6 @@ class ActivityUpdatesCard extends StatelessWidget {
         final reviewedClaims =
             snapshot.data?.docs.where((doc) {
               final data = doc.data();
-
               final status = data['status'];
 
               return status == 'approved' || status == 'changes_requested';
@@ -839,17 +890,24 @@ class ActivityUpdatesCard extends StatelessWidget {
                   Text(
                     reachedXpCap
                         ? awardedXp > 0
-                              ? 'Your partner approved this activity. '
-                                    'You earned $awardedXp XP and reached '
-                                    'the Level 50 maximum!'
-                              : 'Your partner approved this activity. '
-                                    'You are already at the Level 50 '
-                                    'maximum, so no additional XP was awarded.'
+                              ? 'Your partner approved '
+                                    'this activity. You '
+                                    'earned $awardedXp XP '
+                                    'and reached the Level '
+                                    '50 maximum!'
+                              : 'Your partner approved '
+                                    'this activity. You '
+                                    'are already at the '
+                                    'Level 50 maximum, so '
+                                    'no additional XP was '
+                                    'awarded.'
                         : awardedXp > 0
-                        ? 'Your partner approved this activity. '
-                              'You earned $awardedXp XP!'
-                        : 'Your partner approved this activity. '
-                              'This approval adds 0 XP.',
+                        ? 'Your partner approved '
+                              'this activity. You '
+                              'earned $awardedXp XP!'
+                        : 'Your partner approved '
+                              'this activity. This '
+                              'approval adds 0 XP.',
                   )
                 else ...[
                   const Text(

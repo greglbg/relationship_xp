@@ -20,6 +20,11 @@ const {
   applyBrowniePointCredit,
 } = require("./src/bp_wallet");
 
+const {
+  purchaseIndividualReward:
+    purchaseIndividualRewardService,
+} = require("./src/individual_reward_purchase");
+
 initializeApp();
 
 const db = getFirestore();
@@ -118,51 +123,6 @@ function requireCompletionId(value) {
   }
 
   return completionId;
-}
-
-/**
- * Validates an optional catalog photo path.
- *
- * The path must be inside the temporary photo area, belong to the
- * authenticated user, and use the same completion ID as the catalog
- * completion being submitted.
- *
- * @param {*} value Optional photo path supplied by the client.
- * @param {string} coupleId Couple document ID.
- * @param {string} userId Firebase Authentication user ID.
- * @param {string} completionId Unique completion ID.
- * @return {string|null} Validated photo path, or null when omitted.
- */
-function optionalCatalogPhotoPath(
-    value,
-    coupleId,
-    userId,
-    completionId,
-) {
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return null;
-  }
-
-  const photoPath = requireString(
-      value,
-      "The activity photo path is not valid.",
-  );
-
-  const expectedPath =
-    `temporaryPhotos/couples/${coupleId}/catalogProofs/` +
-    `${userId}/${completionId}.jpg`;
-
-  if (photoPath !== expectedPath) {
-    throw new HttpsError(
-        "invalid-argument",
-        "The activity photo path is not valid.",
-    );
-  }
-
-  return photoPath;
 }
 
 /**
@@ -604,14 +564,6 @@ exports.completeCatalogTask =
           data.completionId,
       );
 
-    const photoPath =
-      optionalCatalogPhotoPath(
-          data.photoPath,
-          coupleId,
-          userId,
-          completionId,
-      );
-
     const task = getTask(taskId);
 
     if (
@@ -938,11 +890,6 @@ exports.completeCatalogTask =
             if (cappedByLevel) {
               claimData.capReason =
                 XP_CAP_REASON;
-            }
-
-            if (photoPath !== null) {
-              claimData.photoPath =
-                photoPath;
             }
 
             transaction.create(
@@ -1324,4 +1271,31 @@ exports.approveCustomClaim =
       );
 
     return result;
+  });
+
+/**
+ * Purchases a standard individual reward with Brownie Points.
+ *
+ * The authenticated user supplies only the couple ID, reward ID,
+ * and unique purchase ID. The server determines the authoritative
+ * reward information and BP price.
+ *
+ * @param {Object} request Callable function request.
+ * @return {Promise<Object>} Completed reward purchase.
+ */
+exports.purchaseIndividualReward =
+  onCall(async (request) => {
+    const userId =
+      requireSignedInUser(request);
+
+    const data =
+      getRequestData(request);
+
+    return purchaseIndividualRewardService({
+      db: db,
+      userId: userId,
+      coupleId: data.coupleId,
+      rewardId: data.rewardId,
+      purchaseId: data.purchaseId,
+    });
   });

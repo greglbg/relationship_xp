@@ -122,13 +122,8 @@ service cloud.firestore {
                         'xp',
                         'submittedByUserId',
                         'status',
-                        'photoPath',
-                        'photoUrl',
                         'createdAt'
-                      ])
-                      && hasValidOptionalPhoto(
-                        request.resource.data
-                      );
+                      ]);
 
         allow update: if isCoupleMember(coupleId)
                       && (
@@ -176,9 +171,10 @@ service cloud.firestore {
                  && request.resource.data.title.size() > 0
                  && request.resource.data.title.size() <= 100
                  && request.resource.data.xp == 25
-                 && hasValidOptionalPhoto(
-                      request.resource.data
-                    )
+                 && !request.resource.data.keys().hasAny([
+                      'photoPath',
+                      'photoUrl'
+                    ])
                  && request.resource.data
                      .diff(resource.data)
                      .affectedKeys()
@@ -231,6 +227,12 @@ service cloud.firestore {
 
         allow create, update, delete: if false;
       }
+
+      match /rewardPurchases/{purchaseId} {
+        allow read: if isCoupleMember(coupleId);
+
+        allow create, update, delete: if false;
+      }
     }
 
     match /coupleInvites/{inviteCode} {
@@ -258,33 +260,6 @@ service cloud.firestore {
              && request.auth.uid in get(
                /databases/$(database)/documents/couples/$(coupleId)
              ).data.memberIds;
-    }
-
-    function hasValidOptionalPhoto(data) {
-      return (
-        !data.keys().hasAny([
-          'photoPath',
-          'photoUrl'
-        ])
-        ||
-        (
-          data.keys().hasAll([
-            'photoPath'
-          ])
-          && data.photoPath is string
-          && data.photoPath.size() > 0
-          && (
-            !data.keys().hasAny([
-              'photoUrl'
-            ])
-            ||
-            (
-              data.photoUrl is string
-              && data.photoUrl.size() > 0
-            )
-          )
-        )
-      );
     }
   }
 }

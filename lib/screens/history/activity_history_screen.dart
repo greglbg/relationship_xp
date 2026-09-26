@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 
 class ActivityHistoryScreen extends StatelessWidget {
@@ -72,7 +71,6 @@ class ActivityHistoryScreen extends StatelessWidget {
 
               claims.sort((a, b) {
                 final aTime = a.data()['createdAt'] as Timestamp?;
-
                 final bTime = b.data()['createdAt'] as Timestamp?;
 
                 if (aTime == null && bTime == null) {
@@ -107,7 +105,9 @@ class ActivityHistoryScreen extends StatelessWidget {
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: claims.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) {
+                  return const SizedBox(height: 12);
+                },
                 itemBuilder: (context, index) {
                   final claim = claims[index];
                   final data = claim.data();
@@ -119,12 +119,6 @@ class ActivityHistoryScreen extends StatelessWidget {
                       memberNames[submittedByUserId] ?? 'Partner';
 
                   final isCurrentUser = user?.uid == submittedByUserId;
-
-                  final rawPhotoPath = data['photoPath'] as String?;
-
-                  final photoPath = rawPhotoPath?.trim().isNotEmpty == true
-                      ? rawPhotoPath!.trim()
-                      : null;
 
                   final baseXp =
                       (data['baseXp'] as num?)?.toInt() ??
@@ -145,7 +139,6 @@ class ActivityHistoryScreen extends StatelessWidget {
                     isCurrentUser: isCurrentUser,
                     createdAt: data['createdAt'] as Timestamp?,
                     reviewMessage: data['reviewMessage'] as String?,
-                    photoPath: photoPath,
                   );
                 },
               );
@@ -167,7 +160,6 @@ class ActivityHistoryCard extends StatelessWidget {
     required this.isCurrentUser,
     required this.createdAt,
     required this.reviewMessage,
-    required this.photoPath,
     super.key,
   });
 
@@ -179,7 +171,6 @@ class ActivityHistoryCard extends StatelessWidget {
   final bool isCurrentUser;
   final Timestamp? createdAt;
   final String? reviewMessage;
-  final String? photoPath;
 
   String get statusLabel {
     switch (status) {
@@ -245,65 +236,6 @@ class ActivityHistoryCard extends StatelessWidget {
         '${date.day}, ${date.year}';
   }
 
-  Future<String> getPhotoUrl() {
-    final path = photoPath;
-
-    if (path == null) {
-      throw StateError('No photo path is available.');
-    }
-
-    return FirebaseStorage.instance.ref(path).getDownloadURL();
-  }
-
-  void showFullPhoto(BuildContext context, String photoUrl) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          child: Stack(
-            children: [
-              InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4,
-                child: Image.network(
-                  photoUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.broken_image_outlined, size: 48),
-                          SizedBox(height: 12),
-                          Text(
-                            'This photo is no '
-                            'longer available.',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: IconButton.filled(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
-                  icon: const Icon(Icons.close),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final feedback = reviewMessage?.trim();
@@ -352,86 +284,6 @@ class ActivityHistoryCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(formattedDate(), style: Theme.of(context).textTheme.bodySmall),
-            if (photoPath != null) ...[
-              const SizedBox(height: 14),
-              FutureBuilder<String>(
-                future: getPhotoUrl(),
-                builder: (context, photoSnapshot) {
-                  if (photoSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return Container(
-                      height: 180,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      child: const CircularProgressIndicator(),
-                    );
-                  }
-
-                  if (photoSnapshot.hasError || !photoSnapshot.hasData) {
-                    return Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.broken_image_outlined),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Text('Photo is no longer available.'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final photoUrl = photoSnapshot.data!;
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          showFullPhoto(context, photoUrl);
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            photoUrl,
-                            height: 200,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 180,
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  'Photo could not be displayed.',
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Tap photo to enlarge',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
             if (status == 'changes_requested' &&
                 feedback != null &&
                 feedback.isNotEmpty) ...[
